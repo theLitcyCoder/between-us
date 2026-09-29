@@ -702,7 +702,7 @@ async function savePlayerResponse(status = "answered") {
   if (status === "answered") {
     if (q.answerType === "written") {
       answer = $("writtenAnswer").value.trim();
-      if (!answer) return toast("You can write something, skip, or choose to talk instead. ♡");
+      if (!answer) return toast("You can write something. ♡");
     } else {
       answer = [...document.querySelectorAll("#choiceList input:checked")].map(x => x.value);
       const custom = $("customAnswer").value.trim();
@@ -732,8 +732,8 @@ async function savePlayerResponse(status = "answered") {
 }
 
 $("nextQuestionButton").addEventListener("click", () => savePlayerResponse("answered"));
-$("skipButton").addEventListener("click", () => savePlayerResponse("skipped"));
-$("talkButton").addEventListener("click", () => savePlayerResponse("would-rather-talk"));
+// $("skipButton").addEventListener("click", () => savePlayerResponse("skipped"));
+// $("talkButton").addEventListener("click", () => savePlayerResponse("would-rather-talk"));
 
 function finishQuestions() {
   showScreen("finishScreen");
