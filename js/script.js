@@ -103,6 +103,10 @@ async function boot() {
   try {
     currentUser = await startAnonymousAuth();
 
+      console.log("CURRENT USER:", currentUser);
+console.log("CURRENT UID:", currentUser.uid);
+
+
     const gameId = getParam("game");
     const listId = getParam("list");
 
@@ -158,44 +162,72 @@ $("createGroupButton").addEventListener("click", () => {
 /* ---------- DASHBOARD ---------- */
 
 async function loadDashboard() {
-  $("dashboardContent").innerHTML = `<div class="loading-inline">Loading your things… ✨</div>`;
+  $("dashboardContent").innerHTML =
+    `<div class="loading-inline">Loading your things… ✨</div>`;
 
   try {
-    const gamesQuery = query(
-      collection(db, "games"),
-      where("creatorId", "==", currentUser.uid)
-    );
-    const listsQuery = query(
-      collection(db, "lists"),
-      where("creatorId", "==", currentUser.uid)
-    );
-    const groupsQuery = query(
-      collection(db, "listGroups"),
-      where("creatorId", "==", currentUser.uid)
+    console.log("Loading dashboard for UID:", currentUser.uid);
+
+    // Get all games first
+    const gamesSnap = await getDocs(collection(db, "games"));
+
+    console.log("ALL GAMES IN FIRESTORE:", gamesSnap.docs.map(d => ({
+      id: d.id,
+      ...d.data()
+    })));
+
+    dashboardGames = gamesSnap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(game => game.creatorId === currentUser.uid);
+
+    console.log("MY GAMES:", dashboardGames);
+
+    // Lists
+    const listsSnap = await getDocs(collection(db, "lists"));
+
+    dashboardLists = listsSnap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(list => list.creatorId === currentUser.uid);
+
+    // Groups
+    const groupsSnap = await getDocs(collection(db, "listGroups"));
+
+    dashboardGroups = groupsSnap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(group => group.creatorId === currentUser.uid);
+
+    dashboardGames.sort(
+      (a, b) =>
+        (b.createdAt?.seconds || 0) -
+        (a.createdAt?.seconds || 0)
     );
 
-    const [gamesSnap, listsSnap, groupsSnap] = await Promise.all([
-      getDocs(gamesQuery),
-      getDocs(listsQuery),
-      getDocs(groupsQuery)
-    ]);
+    dashboardLists.sort(
+      (a, b) =>
+        (b.createdAt?.seconds || 0) -
+        (a.createdAt?.seconds || 0)
+    );
 
-    dashboardGames = gamesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    dashboardLists = listsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    dashboardGroups = groupsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-    dashboardGames.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-    dashboardLists.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-    dashboardGroups.sort((a,b) => (a.title || "").localeCompare(b.title || ""));
+    dashboardGroups.sort(
+      (a, b) =>
+        (a.title || "").localeCompare(b.title || "")
+    );
 
     renderDashboard();
     populateGroupSelect();
+
   } catch (error) {
-    console.error(error);
-    $("dashboardContent").innerHTML = `<div class="empty-state"><span>🌧️</span><h3>Couldn't load your dashboard</h3><p>${escapeHtml(error.message)}</p></div>`;
+    console.error("DASHBOARD ERROR:", error);
+
+    $("dashboardContent").innerHTML = `
+      <div class="empty-state">
+        <span>🌧️</span>
+        <h3>Couldn't load your dashboard</h3>
+        <p>${escapeHtml(error.message)}</p>
+      </div>
+    `;
   }
 }
-
 async function getResponseCount(gameId) {
   try {
     const snap = await getDocs(collection(db, "games", gameId, "responses"));
@@ -362,15 +394,31 @@ $("saveGroupButton").addEventListener("click", async () => {
 function resetQuestionCreator() {
   creatorQuestions = [];
   editingQuestionId = null;
+
+  // Important: starting a fresh creator session should not
+  // accidentally point at a previously created game.
+  currentGameId = null;
+  currentGame = null;
+
   $("gameTitle").value = "";
   $("questionInput").value = "";
+
   document.querySelector('input[name="category"][value="very-light"]').checked = true;
   document.querySelector('input[name="answerType"][value="written"]').checked = true;
+
   $("allowCustomAnswer").checked = false;
+
+  // Keep the share link completely hidden until
+  // the creator actually generates/saves the game.
   $("gameCreatedArea").classList.add("hidden");
+  $("gameLink").value = "";
+
   $("questionList").innerHTML = "";
   $("questionEmpty").classList.remove("hidden");
   $("cancelEditQuestionButton").classList.add("hidden");
+
+  $("optionsList").innerHTML = "";
+
   renderOptionsEditor();
 }
 
@@ -379,10 +427,17 @@ async function startQuestionCreator(existingGame = null) {
 
   if (existingGame) {
     $("gameTitle").value = existingGame.title || "";
+
     creatorQuestions = structuredClone(existingGame.questions || []);
+
+    // Remember which existing game we're editing,
+    // but DO NOT show the share link yet.
     currentGameId = existingGame.id;
-    $("gameCreatedArea").classList.remove("hidden");
-    $("gameLink").value = makeGameLink(existingGame.id);
+
+    // Link stays hidden until Generate is clicked.
+    $("gameCreatedArea").classList.add("hidden");
+    $("gameLink").value = "";
+
     renderQuestionList();
   }
 
@@ -526,17 +581,25 @@ function makeGameLink(id) {
 
 $("generateGameButton").addEventListener("click", async () => {
   const title = $("gameTitle").value.trim() || "Between Us Questions";
-  if (!creatorQuestions.length) return toast("Add at least one question first.");
+
+  if (!creatorQuestions.length) {
+    return toast("Add at least one question first.");
+  }
 
   try {
+
     if (currentGameId) {
+      // Existing game: update it.
       await updateDoc(doc(db, "games", currentGameId), {
         title,
         questions: creatorQuestions,
+        active: true,
         updatedAt: serverTimestamp()
       });
+
       toast("Game updated ✨");
     } else {
+      // New game: create it.
       const ref = await addDoc(collection(db, "games"), {
         creatorId: currentUser.uid,
         title,
@@ -545,13 +608,20 @@ $("generateGameButton").addEventListener("click", async () => {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
+
       currentGameId = ref.id;
+
       toast("Private game created ✨");
     }
 
+    // ONLY NOW do we create/show the share link.
     $("gameLink").value = makeGameLink(currentGameId);
     $("gameCreatedArea").classList.remove("hidden");
+
+    // Refresh the creator dashboard so the game is immediately
+    // visible in "My Stuff".
     await loadDashboard();
+
   } catch (e) {
     console.error(e);
     toast("Couldn't save the game.");
