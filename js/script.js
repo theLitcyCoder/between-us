@@ -18,6 +18,172 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
+const AI_WORKER_URL =
+  "https://between-us-ai.newoshadow21.workers.dev";
+
+  // ===============================
+// AI HELPER
+// ===============================
+
+async function askAI({
+  mode,
+  question,
+  category,
+  answer = ""
+}) {
+
+  try {
+
+    const response = await fetch(AI_WORKER_URL, {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json"
+      },
+
+      body: JSON.stringify({
+        mode,
+        question,
+        category,
+        answer
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("AI Worker error:", data);
+      throw new Error(data.error || "AI request failed.");
+    }
+
+    return data.text;
+
+  } catch (error) {
+
+    console.error("AI error:", error);
+
+    throw error;
+  }
+}
+
+// ===============================
+// PLAYER: UNDERSTAND QUESTION
+// ===============================
+
+async function explainCurrentQuestion() {
+
+  if (!currentGame || !currentGame.questions) {
+    return;
+  }
+
+  const question =
+    currentGame.questions[currentQuestionIndex];
+
+  if (!question) {
+    return;
+  }
+
+  const button =
+    document.getElementById("questionHelpButton");
+
+  const resultBox =
+    document.getElementById("questionHelpResult");
+
+  if (!button || !resultBox) {
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = "✨ Thinking...";
+
+  resultBox.classList.remove("hidden");
+
+  resultBox.textContent =
+    "Let me explain what this question is asking...";
+
+  try {
+
+    const explanation = await askAI({
+      mode: "question-help",
+      question: question.question,
+      category: question.category
+    });
+
+    resultBox.textContent = explanation;
+
+  } catch (error) {
+
+    resultBox.textContent =
+      "I couldn't explain this question right now. You can still answer it normally.";
+
+  } finally {
+
+    button.disabled = false;
+button.innerHTML = '<span class="ai-bulb">💡</span> Help me understand';
+  }
+}
+
+
+// ===============================
+// CREATOR: UNDERSTAND RESPONSE
+// ===============================
+
+async function explainResponse(responseId) {
+
+  const response = currentResponses.find(
+    r => r.id === responseId
+  );
+
+  if (!response) {
+    return;
+  }
+
+  const resultBox =
+    document.getElementById(
+      `ai-response-${responseId}`
+    );
+
+  const button =
+    document.querySelector(
+      `[data-ai-response="${responseId}"]`
+    );
+
+  if (!resultBox || !button) {
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = "✨ Thinking...";
+
+  resultBox.classList.remove("hidden");
+
+  resultBox.textContent =
+    "Looking at what this response could mean...";
+
+  try {
+
+    const interpretation = await askAI({
+      mode: "response-understanding",
+      question: response.question,
+      category: response.category,
+      answer: response.answer
+    });
+
+    resultBox.textContent = interpretation;
+
+  } catch (error) {
+
+    resultBox.textContent =
+      "I couldn't interpret this response right now.";
+
+  } finally {
+
+    button.disabled = false;
+    button.textContent =
+      "✨ Understand this response";
+  }
+}
+
 const $ = (id) => document.getElementById(id);
 
 let currentUser = null;
@@ -64,13 +230,14 @@ function toast(message) {
   toast.timer = setTimeout(() => el.classList.remove("show"), 2600);
 }
 
-function escapeHtml(value = "") {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+function escapeHtml(value) {
+
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function randomItem(array) {
@@ -672,6 +839,21 @@ function renderPlayerQuestion() {
   $("questionProgress").textContent = `Question ${currentQuestionIndex + 1} of ${currentGame.questions.length}`;
   $("progressBar").style.width = `${((currentQuestionIndex + 1) / currentGame.questions.length) * 100}%`;
   $("playerQuestion").textContent = q.question;
+  const questionHelpButton =
+  document.getElementById("questionHelpButton");
+
+const questionHelpResult =
+  document.getElementById("questionHelpResult");
+
+if (questionHelpButton) {
+  questionHelpButton.disabled = false;
+  questionHelpButton.textContent = "💡 Help me understand";
+}
+
+if (questionHelpResult) {
+  questionHelpResult.classList.add("hidden");
+  questionHelpResult.textContent = "";
+}
   $("categoryBadge").textContent = cat.label;
   $("scene").className = `scene ${cat.scene}`;
   $("playerCharacter").textContent = randomItem(cat.character);
@@ -732,6 +914,17 @@ async function savePlayerResponse(status = "answered") {
 }
 
 $("nextQuestionButton").addEventListener("click", () => savePlayerResponse("answered"));
+const questionHelpButton =
+  document.getElementById("questionHelpButton");
+
+if (questionHelpButton) {
+
+  questionHelpButton.addEventListener(
+    "click",
+    explainCurrentQuestion
+  );
+
+}
 // $("skipButton").addEventListener("click", () => savePlayerResponse("skipped"));
 // $("talkButton").addEventListener("click", () => savePlayerResponse("would-rather-talk"));
 
@@ -745,40 +938,110 @@ function finishQuestions() {
 async function openResponses(gameId) {
   try {
     const gameSnap = await getDoc(doc(db, "games", gameId));
-    if (!gameSnap.exists()) return toast("Game not found.");
 
-    const game = { id: gameId, ...gameSnap.data() };
-    if (game.creatorId !== currentUser.uid) return toast("Only the creator can view results.");
+    if (!gameSnap.exists()) {
+      return toast("Game not found.");
+    }
 
-    const snap = await getDocs(collection(db, "games", gameId, "responses"));
-    const responses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const game = {
+      id: gameId,
+      ...gameSnap.data()
+    };
 
-    responses.sort((a,b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
-    $("responsesTitle").textContent = game.title || "Responses";
+    if (game.creatorId !== currentUser.uid) {
+      return toast("Only the creator can view results.");
+    }
+
+    const snap = await getDocs(
+      collection(db, "games", gameId, "responses")
+    );
+
+    const responses = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data()
+    }));
+
+    // IMPORTANT:
+    // Store the full responses so the AI function
+    // can find the response that was clicked.
+    currentResponses = responses;
+
+    responses.sort(
+      (a, b) =>
+        (a.createdAt?.seconds || 0) -
+        (b.createdAt?.seconds || 0)
+    );
+
+    $("responsesTitle").textContent =
+      game.title || "Responses";
 
     const grouped = game.questions.map(q => ({
       question: q,
-      answers: responses.filter(r => r.questionId === q.id)
+      answers: responses.filter(
+        r => r.questionId === q.id
+      )
     }));
 
-    $("responsesList").innerHTML = grouped.map(({question, answers}) => {
-      const cat = CATEGORIES[question.category] || CATEGORIES["very-light"];
-      return `
-        <article class="response-card">
-          <div class="response-question">
-            <span class="mini-badge ${cat.scene}">${cat.label}</span>
-            <h3>${escapeHtml(question.question)}</h3>
-          </div>
-          ${answers.length ? answers.map(renderResponse).join("") : `<p class="muted">No response yet.</p>`}
-        </article>`;
-    }).join("");
+    $("responsesList").innerHTML =
+      grouped.map(({ question, answers }) => {
+
+        const cat =
+          CATEGORIES[question.category] ||
+          CATEGORIES["very-light"];
+
+        return `
+          <article class="response-card">
+
+            <div class="response-question">
+
+              <span class="mini-badge ${cat.scene}">
+                ${cat.label}
+              </span>
+
+              <h3>
+                ${escapeHtml(question.question)}
+              </h3>
+
+            </div>
+
+            ${
+              answers.length
+                ? answers.map(renderResponse).join("")
+                : `<p class="muted">No response yet.</p>`
+            }
+
+          </article>
+        `;
+
+      }).join("");
+
+    // IMPORTANT:
+    // The AI buttons now exist in the page,
+    // so attach their click events here.
+    document
+      .querySelectorAll("[data-ai-response]")
+      .forEach(button => {
+
+        button.addEventListener("click", () => {
+
+          explainResponse(
+            button.dataset.aiResponse
+          );
+
+        });
+
+      });
 
     showScreen("responsesScreen");
+
   } catch (e) {
+
     console.error(e);
+
     toast("Couldn't load responses.");
   }
 }
+
 
 function renderResponse(r) {
   const statusLabel = {
@@ -788,18 +1051,41 @@ function renderResponse(r) {
   }[r.status] || r.status;
 
   let answer = "";
+
   if (Array.isArray(r.answer)) {
-    answer = r.answer.length ? `<ul>${r.answer.map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ul>` : "";
+    answer = r.answer.length
+      ? `<ul>${r.answer.map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ul>`
+      : "";
   } else {
-    answer = r.answer ? `<p>${escapeHtml(r.answer)}</p>` : "";
+    answer = r.answer
+      ? `<p>${escapeHtml(r.answer)}</p>`
+      : "";
   }
 
   return `
     <div class="response-item">
+
       <span class="status-pill">${statusLabel}</span>
+
       ${answer}
+
+      <button
+        type="button"
+        class="ai-help-button"
+        data-ai-response="${r.id}"
+      >
+        ✨ Understand this response
+      </button>
+
+      <div
+        id="ai-response-${r.id}"
+        class="ai-result hidden"
+      ></div>
+
       <small>${formatDate(r.createdAt)}</small>
-    </div>`;
+
+    </div>
+  `;
 }
 
 /* ---------- LIST CREATOR ---------- */
