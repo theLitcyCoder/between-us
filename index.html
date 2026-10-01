@@ -137,18 +137,47 @@
       </div>
 
       <div class="card creator-actions">
-        <button class="primary-button wide" id="generateGameButton" type="button">💕 Create Private Game</button>
-        <div id="gameCreatedArea" class="created-share hidden">
-          <p class="success-title">Your game is ready ✨</p>
-          <div class="share-box">
-            <input id="gameLink" readonly>
-            <button class="soft-button" id="copyLinkButton" type="button">Copy</button>
-          </div>
-          <div class="button-row">
-            <button class="soft-button" id="openCreatedGameButton" type="button">Open game</button>
-            <button class="soft-button" id="viewCreatedResponsesButton" type="button">View results</button>
-          </div>
-        </div>
+      <div id="gameCreatedArea" class="hidden">
+
+  <div class="game-ready-message">
+    <strong>💭 Your game is ready!</strong>
+    <span>Share the question with your friend ♡</span>
+  </div>
+
+  <input
+    id="gameLink"
+    class="text-input"
+    type="text"
+    readonly
+  >
+
+  <div class="created-game-actions">
+    <button
+      id="copyLinkButton"
+      class="soft-button"
+      type="button"
+    >
+      Copy Link
+    </button>
+
+    <button
+      id="openCreatedGameButton"
+      class="soft-button"
+      type="button"
+    >
+      Open Game ↗
+    </button>
+
+    <button
+      id="viewCreatedResponsesButton"
+      class="soft-button"
+      type="button"
+    >
+      View Responses
+    </button>
+  </div>
+
+</div>
       </div>
     </section>
 
