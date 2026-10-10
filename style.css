@@ -1679,3 +1679,44 @@ body.dark-mode .theme-toggle-knob {
 .friend-answer-status {
   color: var(--accent-color, #d8b4e2);
 }
+
+
+
+/* =========================
+   ALWAYS-VISIBLE APP FOOTER
+========================= */
+
+.app-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  box-sizing: border-box;
+  z-index: 1000;
+
+  padding: 10px 16px;
+  text-align: center;
+
+  background: rgba(23, 21, 31, 0.96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  border-top: 1px solid rgba(216, 198, 232, 0.12);
+  color: #A9A0B8;
+  font-size: 11px;
+}
+
+.app-footer p {
+  margin: 0 0 4px;
+  color: #D8C6E8;
+  font-size: 12px;
+}
+
+.app-footer span {
+  letter-spacing: 0.3px;
+}
+
+/* Reserve room so content can scroll above the footer */
+body {
+  padding-bottom: 76px;
+}
