@@ -3,6 +3,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
 import {
   getAuth,
   signInAnonymously,
+  signInWithCustomToken,
+  signOut,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 
@@ -28,7 +30,11 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 
-// Wait for Firebase to finish restoring the existing anonymous user.
+// =====================================================
+// ANONYMOUS AUTH
+// =====================================================
+
+// Wait for Firebase to finish restoring the existing user.
 // Only create a new anonymous user if there truly isn't one.
 async function startAnonymousAuth() {
 
@@ -38,7 +44,8 @@ async function startAnonymousAuth() {
 
     unsubscribe = onAuthStateChanged(auth, async (user) => {
 
-      // Firebase finished checking whether a previous user exists
+      // Firebase finished checking whether a previous
+      // user exists.
       if (user) {
 
         unsubscribe();
@@ -49,10 +56,11 @@ async function startAnonymousAuth() {
       }
 
       // No existing user was found.
-      // Create the anonymous user now.
+      // Create an anonymous user now.
       try {
 
-        const credential = await signInAnonymously(auth);
+        const credential =
+          await signInAnonymously(auth);
 
         unsubscribe();
 
@@ -73,10 +81,81 @@ async function startAnonymousAuth() {
 }
 
 
+// =====================================================
+// CUSTOM TOKEN AUTH
+// =====================================================
+
+// Sign into Firebase using the custom token returned
+// by the Cloudflare authentication Worker.
+async function signInWithWorkerToken(token) {
+
+  if (!token) {
+    throw new Error(
+      "No Firebase authentication token was returned."
+    );
+  }
+
+  const credential =
+    await signInWithCustomToken(
+      auth,
+      token
+    );
+
+  return credential.user;
+}
+
+
+// =====================================================
+// CURRENT USER ID TOKEN
+// =====================================================
+
+// Get a fresh Firebase ID token for the currently
+// signed-in user.
+//
+// This is needed when upgrading an existing anonymous
+// account into a username/password account.
+async function getCurrentIdToken() {
+
+  const user = auth.currentUser;
+
+  if (!user) {
+    throw new Error(
+      "No Firebase user is currently signed in."
+    );
+  }
+
+  return await user.getIdToken(true);
+}
+
+
+// =====================================================
+// SIGN OUT
+// =====================================================
+
+async function logout() {
+
+  await signOut(auth);
+
+}
+
+
+// =====================================================
+// EXPORTS
+// =====================================================
+
 export {
   app,
   auth,
   db,
+
   startAnonymousAuth,
+
+  signInWithWorkerToken,
+
+  getCurrentIdToken,
+
+  logout,
+
   onAuthStateChanged
 };
+

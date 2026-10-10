@@ -1374,3 +1374,308 @@ button {
       0 4px 12px rgba(120, 80, 110, 0.08);
   }
 }
+
+
+
+/* =========================================================
+   LIGHT / DARK MODE TOGGLE
+========================================================= */
+
+.theme-toggle-wrap {
+  position: fixed;
+  top: 18px;
+  right: 20px;
+  z-index: 9999;
+
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  padding: 7px 10px;
+  border-radius: 30px;
+
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.10);
+
+  backdrop-filter: blur(10px);
+}
+
+.theme-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.theme-toggle {
+  position: relative;
+
+  width: 48px;
+  height: 26px;
+
+  padding: 0;
+  border: none;
+  border-radius: 30px;
+
+  background: #ead7df;
+
+  cursor: pointer;
+
+  transition:
+    background 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.theme-toggle-knob {
+  position: absolute;
+
+  top: 3px;
+  left: 3px;
+
+  width: 20px;
+  height: 20px;
+
+  border-radius: 50%;
+
+  background: white;
+
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.18);
+
+  transition: transform 0.25s ease;
+}
+
+
+/* =========================================================
+   BETWEEN US — DARK MODE
+   Based on the Dark Reader palette
+========================================================= */
+
+body.dark-mode {
+  background: #181a1b !important;
+  color: #e8e6e3 !important;
+
+  color-scheme: dark;
+}
+
+
+/* ---------------------------------------------------------
+   TOP BAR
+--------------------------------------------------------- */
+
+body.dark-mode .topbar {
+  background: rgba(24, 26, 27, 0.82) !important;
+  border-bottom-color: #482a3f !important;
+  color: #bcb7ae !important;
+}
+
+
+/* ---------------------------------------------------------
+   APP SHELL
+--------------------------------------------------------- */
+
+body.dark-mode .app-shell {
+  background: #181a1b !important;
+  color: #e8e6e3 !important;
+}
+
+
+/* ---------------------------------------------------------
+   CARDS / PANELS
+--------------------------------------------------------- */
+
+body.dark-mode .card,
+body.dark-mode .creator-card,
+body.dark-mode .game-card,
+body.dark-mode .list-card,
+body.dark-mode .question-card,
+body.dark-mode .response-card {
+  background: #1b1d1e !important;
+  color: #e8e6e3 !important;
+  border-color: #482a3f !important;
+}
+
+
+/* ---------------------------------------------------------
+   INPUTS
+--------------------------------------------------------- */
+
+body.dark-mode input,
+body.dark-mode textarea,
+body.dark-mode select {
+  background: #242728 !important;
+  color: #e9d3e0 !important;
+  border-color: #736b5e !important;
+}
+
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder {
+  color: #afa89e !important;
+}
+
+
+/* ---------------------------------------------------------
+   BUTTONS
+--------------------------------------------------------- */
+
+body.dark-mode .soft-button {
+  background: #272a2c !important;
+  color: #e9d3e0 !important;
+  border-color: #71695d !important;
+}
+
+body.dark-mode .soft-button:hover {
+  background: #2e3234 !important;
+}
+
+
+/* ---------------------------------------------------------
+   PINK / ROMANTIC AREAS
+--------------------------------------------------------- */
+
+body.dark-mode .game-ready-message {
+  background: #261e29 !important;
+  color: #eccee1 !important;
+  border-color: #51233a !important;
+}
+
+
+/* ---------------------------------------------------------
+   AI AREAS
+--------------------------------------------------------- */
+
+body.dark-mode .ai-result {
+  background: #232627 !important;
+  color: #dad7d2 !important;
+  border-color: #4a293c !important;
+}
+
+
+/* ---------------------------------------------------------
+   SECONDARY TEXT
+--------------------------------------------------------- */
+
+body.dark-mode .empty-state,
+body.dark-mode .question-empty {
+  color: #bcb7ae !important;
+}
+
+
+/* ---------------------------------------------------------
+   LINKS / ACCENTS
+--------------------------------------------------------- */
+
+body.dark-mode a {
+  color: #da648b;
+}
+
+body.dark-mode .accent,
+body.dark-mode .pink {
+  color: #da648b;
+}
+
+
+/* ---------------------------------------------------------
+   CHECKBOXES / RADIO BUTTONS
+--------------------------------------------------------- */
+
+body.dark-mode input[type="checkbox"],
+body.dark-mode input[type="radio"] {
+  accent-color: #da648b;
+}
+
+
+/* ---------------------------------------------------------
+   THEME TOGGLE
+--------------------------------------------------------- */
+
+body.dark-mode .theme-toggle-wrap {
+  background: rgba(24, 26, 27, 0.9);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+}
+
+body.dark-mode .theme-toggle {
+  background: #493643;
+}
+
+body.dark-mode .theme-toggle-knob {
+  background: #e8e6e3;
+  transform: translateX(22px);
+}
+
+/* =========================================================
+   USERNAME
+========================================================= */
+
+.username-card {
+  width: min(460px, 100%);
+  text-align: center;
+}
+
+.username-card .text-input {
+  margin-top: 18px;
+  margin-bottom: 14px;
+  text-align: center;
+}
+
+.username-display {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 13px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  background: #fff0f6;
+  color: #b26d88;
+}
+
+.username-display.hidden {
+  display: none;
+}
+
+
+/* Friend question inbox */
+
+.friend-inbox {
+  margin-top: 2rem;
+}
+
+.friend-inbox-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.friend-question-card {
+  padding: 1.25rem;
+  border: 1px solid var(--border-color, #45404b);
+  border-radius: 16px;
+  background: var(--card-bg, #24212b);
+}
+
+.friend-question-card h3 {
+  margin: 0.75rem 0 1rem;
+}
+
+.friend-question-card textarea {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0.75rem 0;
+}
+
+.friend-answer-options {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.friend-answer-option {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.friend-question-count,
+.friend-answer-status {
+  color: var(--accent-color, #d8b4e2);
+}

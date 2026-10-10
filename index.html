@@ -5,392 +5,1798 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Between Us 💕</title>
   <meta name="description" content="A cozy private space for questions and shared lists.">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Quicksand:wght@500;600;700&display=swap"
+    rel="stylesheet"
+  >
+
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-  <div class="floating-hearts" aria-hidden="true">
-    <span>♡</span><span>✦</span><span>♡</span><span>✿</span><span>♡</span>
+
+  <!-- =====================================================
+       THEME
+  ====================================================== -->
+
+  <div class="theme-toggle-wrap">
+
+    <span class="theme-icon">☀️</span>
+
+    <button
+      id="themeToggle"
+      class="theme-toggle"
+      type="button"
+      aria-label="Toggle dark mode"
+      aria-pressed="false"
+    >
+      <span class="theme-toggle-knob"></span>
+    </button>
+
+    <span class="theme-icon">🌙</span>
+
   </div>
 
+
+  <div class="floating-hearts" aria-hidden="true">
+    <span>♡</span>
+    <span>✦</span>
+    <span>♡</span>
+    <span>✿</span>
+    <span>♡</span>
+  </div>
+
+
+  <!-- =====================================================
+       TOP BAR
+  ====================================================== -->
+
   <header class="topbar">
-    <button class="brand" id="homeButton" type="button">
+
+    <button
+      class="brand"
+      id="homeButton"
+      type="button"
+    >
       <span class="brand-mark">♡</span>
       <span>Between Us</span>
     </button>
+
+
     <div class="top-actions">
-      <button class="ghost small hidden" id="backButton" type="button">← Back</button>
+
+      <button
+        class="ghost small hidden"
+        id="backButton"
+        type="button"
+      >
+        ← Back
+      </button>
+
+
+      <button
+        id="usernameDisplay"
+        class="username-display hidden"
+        type="button"
+        title="Account"
+      ></button>
+
     </div>
+
   </header>
 
+
+  <!-- =====================================================
+       MAIN APP
+  ====================================================== -->
+
   <main class="app-shell">
-    <section id="loadingScreen" class="screen center-screen">
+
+
+    <!-- ===================================================
+         LOADING
+    ==================================================== -->
+
+    <section
+      id="loadingScreen"
+      class="screen center-screen"
+    >
+
       <div class="loader-heart">♡</div>
-      <p>Getting your little corner ready…</p>
+
+      <p>
+        Getting your little corner ready…
+      </p>
+
     </section>
 
-    <section id="landingScreen" class="screen hidden">
+
+    <!-- ===================================================
+         ACCOUNT / USERNAME SCREEN
+    ==================================================== -->
+
+    <section
+      id="usernameScreen"
+      class="screen hidden center-screen"
+    >
+
+      <div class="finish-card username-card">
+
+        <div class="finish-characters">
+          🐰 ♡ 🐻
+        </div>
+
+        <p class="eyebrow">
+          ♡ Welcome to Between Us
+        </p>
+
+        <h1 id="accountScreenTitle">
+          Welcome back
+        </h1>
+
+        <p id="accountScreenDescription">
+          Log in to your Between Us space, or create an account to keep your space safe across devices.
+        </p>
+
+
+        <!-- ===============================================
+             ACCOUNT MODE BUTTONS
+        ================================================ -->
+
+        <div
+          class="type-toggle"
+          id="accountModeToggle"
+        >
+
+          <label>
+            <input
+              type="radio"
+              name="accountMode"
+              value="login"
+              checked
+            >
+            <span>♡ Log in</span>
+          </label>
+
+          <label>
+            <input
+              type="radio"
+              name="accountMode"
+              value="create"
+            >
+            <span>＋ Create account</span>
+          </label>
+
+        </div>
+
+
+        <!-- ===============================================
+             LOGIN
+        ================================================ -->
+
+        <div id="loginAccountArea">
+
+          <label for="loginUsernameInput">
+            Username
+          </label>
+
+          <input
+            id="loginUsernameInput"
+            class="text-input"
+            type="text"
+            maxlength="20"
+            autocomplete="username"
+            placeholder="Your username"
+          >
+
+
+          <label for="loginPasswordInput">
+            Password
+          </label>
+
+          <input
+            id="loginPasswordInput"
+            class="text-input"
+            type="password"
+            autocomplete="current-password"
+            placeholder="Your password"
+          >
+
+
+          <button
+            id="loginAccountButton"
+            class="primary-button wide"
+            type="button"
+          >
+            Log in ♡
+          </button>
+
+        </div>
+
+
+        <!-- ===============================================
+             CREATE ACCOUNT
+        ================================================ -->
+
+        <div
+          id="createAccountArea"
+          class="hidden"
+        >
+
+          <label for="usernameInput">
+            Choose a username
+          </label>
+
+          <input
+            id="usernameInput"
+            class="text-input"
+            type="text"
+            maxlength="20"
+            autocomplete="username"
+            placeholder="Your username"
+          >
+
+          <small class="muted">
+            3–20 characters · letters, numbers, _ or -
+          </small>
+
+
+          <label for="accountPasswordInput">
+            Password
+          </label>
+
+          <input
+            id="accountPasswordInput"
+            class="text-input"
+            type="password"
+            minlength="8"
+            autocomplete="new-password"
+            placeholder="At least 8 characters"
+          >
+
+
+          <label for="accountPasswordConfirmInput">
+            Confirm password
+          </label>
+
+          <input
+            id="accountPasswordConfirmInput"
+            class="text-input"
+            type="password"
+            minlength="8"
+            autocomplete="new-password"
+            placeholder="Enter it again"
+          >
+
+
+          <button
+            id="submitUsernameButton"
+            class="primary-button wide"
+            type="button"
+          >
+            Create account ♡
+          </button>
+
+        </div>
+
+
+        <!-- ===============================================
+             ACCOUNT ERROR
+        ================================================ -->
+
+        <p
+          id="usernameError"
+          class="muted hidden"
+        ></p>
+
+
+        <!-- ===============================================
+             LEGACY / ANONYMOUS USER AREA
+        ================================================ -->
+
+        <div
+          id="anonymousAccountArea"
+          class="hidden"
+        >
+
+          <div class="divider"></div>
+
+          <p class="muted">
+            You already have a Between Us space on this device.
+            Create an account to keep your existing games,
+            lists and groups when you move to another device.
+          </p>
+
+          <button
+            id="secureExistingAccountButton"
+            class="soft-button wide"
+            type="button"
+          >
+            Secure this space ♡
+          </button>
+
+          <button
+            id="continueAnonymousButton"
+            class="ghost wide"
+            type="button"
+          >
+            Continue without an account
+          </button>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ===================================================
+         LANDING / HOME
+    ==================================================== -->
+
+    <section
+      id="landingScreen"
+      class="screen hidden"
+    >
+
       <div class="hero">
-        <div class="hero-characters"><span>🐝</span><span>🥟</span></div>
-        <p class="eyebrow">A tiny Safe space for the two of you</p>
-        <h1>Things to say.<br><span>Things to share.</span></h1>
-        <p class="hero-copy">Make cozy question games or shared lists without needing a normal account.</p>
-      </div>
 
-      <div class="creation-grid">
-        <button class="creation-card" id="createQuestionsButton" type="button">
-          <span class="creation-icon">💭</span>
-          <strong>Create Questions</strong>
-          <small>Make a gentle question game</small>
-        </button>
-        <button class="creation-card" id="createListButton" type="button">
-          <span class="creation-icon">☑️</span>
-          <strong>Create a List</strong>
-          <small>Make something you can share</small>
-        </button>
-      </div>
-
-      <div class="dashboard">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">Your space</p>
-            <h2>My Stuff</h2>
-          </div>
-          <button class="soft-button" id="createGroupButton" type="button">＋ List group</button>
+        <div class="hero-characters">
+          <span>🐝</span>
+          <span>🥟</span>
         </div>
 
-        <div id="dashboardContent">
-          <div class="empty-state">
-            <span>🌷</span>
-            <h3>Nothing here yet</h3>
-            <p>Create a question game or a list and it'll show up here.</p>
-          </div>
-        </div>
+        <p class="eyebrow">
+          A tiny Safe space for the two of you
+        </p>
+
+        <h1>
+          Things to say.<br>
+          <span>Things to share.</span>
+        </h1>
+
+        <p class="hero-copy">
+          Make cozy question games or shared lists without needing a normal account.
+        </p>
+
       </div>
+
+
+      <div
+        id="homeContent"
+        class="hidden"
+      >
+
+        <!-- ===============================================
+             CREATE
+        ================================================ -->
+
+        <div class="creation-grid">
+
+          <button
+            class="creation-card"
+            id="createQuestionsButton"
+            type="button"
+          >
+            <span class="creation-icon">💭</span>
+            <strong>Create Questions</strong>
+            <small>Make a gentle question game</small>
+          </button>
+
+
+          <button
+            class="creation-card"
+            id="createListButton"
+            type="button"
+          >
+            <span class="creation-icon">☑️</span>
+            <strong>Create a List</strong>
+            <small>Make something you can share</small>
+          </button>
+
+        </div>
+
+
+        <!-- ===============================================
+             FRIENDS
+        ================================================ -->
+
+        <div class="friends-section">
+
+          <div class="section-heading">
+
+            <div>
+
+              <p class="eyebrow">
+                ♡ Your people
+              </p>
+
+              <h2>
+                Friends
+              </h2>
+
+            </div>
+
+          </div>
+
+
+          <div class="card friends-card">
+
+            <div class="friends-tabs">
+
+              <button
+                id="findFriendsTab"
+                class="soft-button active"
+                type="button"
+              >
+                Find Friends
+              </button>
+
+
+              <button
+                id="friendRequestsTab"
+                class="soft-button"
+                type="button"
+              >
+                Requests
+
+                <span
+                  id="friendRequestCount"
+                  class="notification-count hidden"
+                >
+                  0
+                </span>
+
+              </button>
+
+
+              <button
+                id="friendsListTab"
+                class="soft-button"
+                type="button"
+              >
+                My Friends
+              </button>
+
+            </div>
+
+
+            <!-- FIND FRIENDS -->
+
+            <div id="findFriendsPanel">
+
+              <p class="muted">
+                Search for someone using their Between Us username.
+              </p>
+
+
+              <div class="inline-add">
+
+                <input
+                  id="friendSearchInput"
+                  class="text-input"
+                  type="text"
+                  maxlength="20"
+                  autocomplete="off"
+                  placeholder="Enter username…"
+                >
+
+
+                <button
+                  id="friendSearchButton"
+                  class="primary-button"
+                  type="button"
+                >
+                  Search
+                </button>
+
+              </div>
+
+
+              <div id="friendSearchResult"></div>
+
+            </div>
+
+
+            <!-- FRIEND REQUESTS -->
+
+            <div
+              id="friendRequestsPanel"
+              class="hidden"
+            >
+
+              <div id="friendRequestsList"></div>
+
+
+              <div
+                id="friendRequestsEmpty"
+                class="mini-empty"
+              >
+                No friend requests right now 🌷
+              </div>
+
+            </div>
+
+
+            <!-- FRIENDS LIST -->
+
+            <div
+              id="friendsListPanel"
+              class="hidden"
+            >
+
+              <div id="friendsList"></div>
+
+
+              <div
+                id="friendsEmpty"
+                class="mini-empty"
+              >
+                You don't have any friends yet. ♡
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <!-- ===============================================
+             DASHBOARD
+        ================================================ -->
+
+        <div class="dashboard">
+
+          <div class="section-heading">
+
+            <div>
+
+              <p class="eyebrow">
+                Your space
+              </p>
+
+              <h2>
+                My Stuff
+              </h2>
+
+            </div>
+
+
+            <button
+              class="soft-button"
+              id="createGroupButton"
+              type="button"
+            >
+              ＋ List group
+            </button>
+
+          </div>
+
+
+          <div id="dashboardContent">
+
+            <div class="empty-state">
+
+              <span>🌷</span>
+
+              <h3>
+                Nothing here yet
+              </h3>
+
+              <p>
+                Create a question game or a list and it'll show up here.
+              </p>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
     </section>
 
-    <section id="questionCreatorScreen" class="screen hidden">
+
+    <!-- ===================================================
+         QUESTION CREATOR
+    ==================================================== -->
+
+    <section
+      id="questionCreatorScreen"
+      class="screen hidden"
+    >
+
       <div class="page-heading">
+
         <div>
-          <p class="eyebrow">💭 Question game</p>
-          <h1 id="questionCreatorTitle">Create Questions</h1>
-          <p>Build a set of questions the other person can answer at their own pace.</p>
+
+          <p class="eyebrow">
+            💭 Question game
+          </p>
+
+          <h1 id="questionCreatorTitle">
+            Create Questions
+          </h1>
+
+          <p>
+            Build a set of questions the other person can answer at their own pace.
+          </p>
+
         </div>
+
       </div>
+
 
       <div class="card creator-builder">
-        <label for="gameTitle">Game title</label>
-        <input id="gameTitle" class="text-input" maxlength="80" placeholder="e.g. Things We Should Talk About">
+
+        <label for="gameTitle">
+          Game title
+        </label>
+
+        <input
+          id="gameTitle"
+          class="text-input"
+          maxlength="80"
+          placeholder="e.g. Things We Should Talk About"
+        >
+
 
         <div class="divider"></div>
 
-        <label for="questionInput">Question</label>
-        <textarea id="questionInput" class="text-input textarea" maxlength="500" placeholder="Ask something gently…"></textarea>
 
-        <label>Category</label>
-        <div class="category-grid" id="categoryChoices">
-          <label class="category-choice active"><input type="radio" name="category" value="very-light" checked><span>🌼 Very Light</span></label>
-          <label class="category-choice"><input type="radio" name="category" value="light"><span>🌸 Light</span></label>
-          <label class="category-choice"><input type="radio" name="category" value="deep"><span>🌙 Deep</span></label>
-          <label class="category-choice"><input type="radio" name="category" value="sensitive"><span>💗 Sensitive</span></label>
-          <label class="category-choice"><input type="radio" name="category" value="spicy"><span>💋 Spicy</span></label>
-        </div>
+        <label for="questionInput">
+          Question
+        </label>
 
-        <label>Response style</label>
-        <div class="type-toggle">
-          <label><input type="radio" name="answerType" value="written" checked><span>📝 Written box</span></label>
-          <label><input type="radio" name="answerType" value="options"><span>☑️ Option box</span></label>
-        </div>
+        <textarea
+          id="questionInput"
+          class="text-input textarea"
+          maxlength="500"
+          placeholder="Ask something gently…"
+        ></textarea>
 
-        <div id="optionsEditor" class="options-editor hidden">
-          <div class="subheading-row">
-            <div>
-              <strong>Answer choices</strong>
-              <small>Select-all-that-apply</small>
-            </div>
-            <button class="soft-button small" id="addOptionButton" type="button">＋ Add option</button>
-          </div>
-          <div id="optionsList"></div>
-          <label class="check-row">
-            <input type="checkbox" id="allowCustomAnswer">
-            <span>Let them add “Something else”</span>
+
+        <label>
+          Category
+        </label>
+
+        <div
+          class="category-grid"
+          id="categoryChoices"
+        >
+
+          <label class="category-choice active">
+            <input
+              type="radio"
+              name="category"
+              value="very-light"
+              checked
+            >
+            <span>🌼 Very Light</span>
           </label>
+
+          <label class="category-choice">
+            <input
+              type="radio"
+              name="category"
+              value="light"
+            >
+            <span>🌸 Light</span>
+          </label>
+
+          <label class="category-choice">
+            <input
+              type="radio"
+              name="category"
+              value="deep"
+            >
+            <span>🌙 Deep</span>
+          </label>
+
+          <label class="category-choice">
+            <input
+              type="radio"
+              name="category"
+              value="sensitive"
+            >
+            <span>💗 Sensitive</span>
+          </label>
+
+          <label class="category-choice">
+            <input
+              type="radio"
+              name="category"
+              value="spicy"
+            >
+            <span>💋 Spicy</span>
+          </label>
+
         </div>
 
-        <div class="button-row">
-          <button class="primary-button" id="saveQuestionButton" type="button">＋ Add Question</button>
-          <button class="ghost hidden" id="cancelEditQuestionButton" type="button">Cancel edit</button>
+
+        <label>
+          Response style
+        </label>
+
+        <div class="type-toggle">
+
+          <label>
+            <input
+              type="radio"
+              name="answerType"
+              value="written"
+              checked
+            >
+            <span>📝 Written box</span>
+          </label>
+
+          <label>
+            <input
+              type="radio"
+              name="answerType"
+              value="options"
+            >
+            <span>☑️ Option box</span>
+          </label>
+
         </div>
-      </div>
+<!-- ===============================================
+     FRIEND QUESTION
+=============================================== -->
 
-      <div class="card">
-        <div class="subheading-row">
-          <div>
-            <strong>Your questions</strong>
-            <small id="questionCount">0 questions</small>
-          </div>
-        </div>
-        <div id="questionList" class="question-builder-list"></div>
-        <div id="questionEmpty" class="mini-empty">Add your first question above 🌷</div>
-      </div>
+<div class="friend-question-section">
 
-      <div class="card creator-actions">
-      <div id="gameCreatedArea" class="hidden">
+  <label>
+    Send this question to a friend?
+  </label>
 
-  <div class="game-ready-message">
-    <strong>💭 Your game is ready!</strong>
-    <span>Share the question with your friend ♡</span>
+  <div class="type-toggle" id="friendQuestionToggle">
+
+    <label>
+      <input
+        type="radio"
+        name="friendQuestionMode"
+        value="game"
+        checked
+      >
+      <span>💭 Keep in my game</span>
+    </label>
+
+    <label>
+      <input
+        type="radio"
+        name="friendQuestionMode"
+        value="friend"
+      >
+      <span>♡ Send to a friend</span>
+    </label>
+
   </div>
 
-  <input
-    id="gameLink"
-    class="text-input"
-    type="text"
-    readonly
+
+  <div
+    id="friendQuestionSelectArea"
+    class="hidden"
   >
 
-  <div class="created-game-actions">
-    <button
-      id="copyLinkButton"
-      class="soft-button"
-      type="button"
-    >
-      Copy Link
-    </button>
+    <label for="questionFriendSelect">
+      Choose a friend
+    </label>
 
-    <button
-      id="openCreatedGameButton"
-      class="soft-button"
-      type="button"
+    <select
+      id="questionFriendSelect"
+      class="text-input"
     >
-      Open Game ↗
-    </button>
 
-    <button
-      id="viewCreatedResponsesButton"
-      class="soft-button"
-      type="button"
-    >
-      View Responses
-    </button>
+      <option value="">
+        Choose a friend…
+      </option>
+
+    </select>
+
+    <small class="muted">
+      They'll receive this question in their Between Us space. ♡
+    </small>
+
   </div>
 
 </div>
-      </div>
-    </section>
 
-    <section id="listCreatorScreen" class="screen hidden">
-      <div class="page-heading">
-        <div>
-          <p class="eyebrow">☑️ Shared list</p>
-          <h1>Create a List</h1>
-          <p>Make a list, choose how much the other person can do, and share it.</p>
+        <div
+          id="optionsEditor"
+          class="options-editor hidden"
+        >
+
+          <div class="subheading-row">
+
+            <div>
+
+              <strong>
+                Answer choices
+              </strong>
+
+              <small>
+                Select-all-that-apply
+              </small>
+
+            </div>
+
+
+            <button
+              class="soft-button small"
+              id="addOptionButton"
+              type="button"
+            >
+              ＋ Add option
+            </button>
+
+          </div>
+
+
+          <div id="optionsList"></div>
+
+
+          <label class="check-row">
+
+            <input
+              type="checkbox"
+              id="allowCustomAnswer"
+            >
+
+            <span>
+              Let them add “Something else”
+            </span>
+
+          </label>
+
         </div>
+
+
+        <div class="button-row">
+
+          <button
+            class="primary-button"
+            id="saveQuestionButton"
+            type="button"
+          >
+            ＋ Add Question
+          </button>
+
+
+          <button
+            class="ghost hidden"
+            id="cancelEditQuestionButton"
+            type="button"
+          >
+            Cancel edit
+          </button>
+
+        </div>
+
       </div>
+
 
       <div class="card">
-        <label for="listTitle">List title</label>
-        <input id="listTitle" class="text-input" maxlength="100" placeholder="e.g. Date Ideas">
 
-        <label for="listGroupSelect">List group <span class="optional">(optional)</span></label>
-        <select id="listGroupSelect" class="text-input">
-          <option value="">No group</option>
+        <div class="subheading-row">
+
+          <div>
+
+            <strong>
+              Your questions
+            </strong>
+
+            <small id="questionCount">
+              0 questions
+            </small>
+
+          </div>
+
+        </div>
+
+
+        <div
+          id="questionList"
+          class="question-builder-list"
+        ></div>
+
+
+        <div
+          id="questionEmpty"
+          class="mini-empty"
+        >
+          Add your first question above 🌷
+        </div>
+
+      </div>
+
+
+      <div class="card creator-actions">
+
+        <div
+          id="gameCreatedArea"
+          class="hidden"
+        >
+
+          <div class="game-ready-message">
+
+            <strong>
+              💭 Your game is ready!
+            </strong>
+
+            <span>
+              Share the question with your friend ♡
+            </span>
+
+          </div>
+
+
+          <input
+            id="gameLink"
+            class="text-input"
+            type="text"
+            readonly
+          >
+
+
+          <div class="created-game-actions">
+
+            <button
+              id="copyLinkButton"
+              class="soft-button"
+              type="button"
+            >
+              Copy Link
+            </button>
+
+
+            <button
+              id="openCreatedGameButton"
+              class="soft-button"
+              type="button"
+            >
+              Open Game ↗
+            </button>
+
+
+            <button
+              id="viewCreatedResponsesButton"
+              class="soft-button"
+              type="button"
+            >
+              View Responses
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ===================================================
+         LIST CREATOR
+    ==================================================== -->
+
+    <section
+      id="listCreatorScreen"
+      class="screen hidden"
+    >
+
+      <div class="page-heading">
+
+        <div>
+
+          <p class="eyebrow">
+            ☑️ Shared list
+          </p>
+
+          <h1>
+            Create a List
+          </h1>
+
+          <p>
+            Make a list, choose how much the other person can do, and share it.
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <div class="card">
+
+        <label for="listTitle">
+          List title
+        </label>
+
+        <input
+          id="listTitle"
+          class="text-input"
+          maxlength="100"
+          placeholder="e.g. Date Ideas"
+        >
+
+
+        <label for="listGroupSelect">
+          List group
+          <span class="optional">
+            (optional)
+          </span>
+        </label>
+
+        <select
+          id="listGroupSelect"
+          class="text-input"
+        >
+
+          <option value="">
+            No group
+          </option>
+
         </select>
 
-        <label>What can the person you share with do?</label>
-        <div class="permission-grid" id="permissionChoices">
-          <label class="permission-choice active">
-            <input type="radio" name="permission" value="view" checked>
-            <span>👀 <strong>View only</strong><small>They can only see the list.</small></span>
+
+        <!-- FRIEND SHARING WILL BE CONNECTED HERE -->
+        <div id="listFriendSharingArea">
+
+          <label for="listFriendSelect">
+            Share with
+            <span class="optional">
+              (optional)
+            </span>
           </label>
-          <label class="permission-choice">
-            <input type="radio" name="permission" value="check">
-            <span>☑️ <strong>Check items</strong><small>They can check and uncheck.</small></span>
-          </label>
-          <label class="permission-choice">
-            <input type="radio" name="permission" value="edit">
-            <span>✏️ <strong>Edit list</strong><small>They can add and edit items.</small></span>
-          </label>
-          <label class="permission-choice">
-            <input type="radio" name="permission" value="full">
-            <span>🛠️ <strong>Full access</strong><small>Add, edit, check and delete.</small></span>
-          </label>
+
+          <select
+            id="listFriendSelect"
+            class="text-input"
+          >
+
+            <option value="">
+              Choose a friend…
+            </option>
+
+          </select>
+
+          <small class="muted">
+            Choose a friend to give them access to this list.
+          </small>
+
         </div>
+
+
+        <label>
+          What can the person you share with do?
+        </label>
+
+
+        <div
+          class="permission-grid"
+          id="permissionChoices"
+        >
+
+          <label class="permission-choice active">
+
+            <input
+              type="radio"
+              name="permission"
+              value="view"
+              checked
+            >
+
+            <span>
+              👀
+              <strong>
+                View only
+              </strong>
+              <small>
+                They can only see the list.
+              </small>
+            </span>
+
+          </label>
+
+
+          <label class="permission-choice">
+
+            <input
+              type="radio"
+              name="permission"
+              value="check"
+            >
+
+            <span>
+              ☑️
+              <strong>
+                Check items
+              </strong>
+              <small>
+                They can check and uncheck.
+              </small>
+            </span>
+
+          </label>
+
+
+          <label class="permission-choice">
+
+            <input
+              type="radio"
+              name="permission"
+              value="edit"
+            >
+
+            <span>
+              ✏️
+              <strong>
+                Edit list
+              </strong>
+              <small>
+                They can add and edit items.
+              </small>
+            </span>
+
+          </label>
+
+
+          <label class="permission-choice">
+
+            <input
+              type="radio"
+              name="permission"
+              value="full"
+            >
+
+            <span>
+              🛠️
+              <strong>
+                Full access
+              </strong>
+              <small>
+                Add, edit, check and delete.
+              </small>
+            </span>
+
+          </label>
+
+        </div>
+
 
         <label class="check-row">
-          <input type="checkbox" id="startWithItems" checked>
-          <span>Start with a few items now</span>
+
+          <input
+            type="checkbox"
+            id="startWithItems"
+            checked
+          >
+
+          <span>
+            Start with a few items now
+          </span>
+
         </label>
+
+
         <div id="starterItemsArea">
+
           <div id="starterItemsList"></div>
-          <button class="soft-button small" id="addStarterItemButton" type="button">＋ Add item</button>
+
+
+          <button
+            class="soft-button small"
+            id="addStarterItemButton"
+            type="button"
+          >
+            ＋ Add item
+          </button>
+
         </div>
+
 
         <div class="button-row">
-          <button class="primary-button wide" id="createListSaveButton" type="button">☑️ Create List</button>
+
+          <button
+            class="primary-button wide"
+            id="createListSaveButton"
+            type="button"
+          >
+            ☑️ Create List
+          </button>
+
         </div>
+
       </div>
 
-      <div id="listCreatedArea" class="card created-share hidden">
-        <p class="success-title">Your list is ready ✨</p>
+
+      <div
+        id="listCreatedArea"
+        class="card created-share hidden"
+      >
+
+        <p class="success-title">
+          Your list is ready ✨
+        </p>
+
+
         <div class="share-box">
-          <input id="listLink" readonly>
-          <button class="soft-button" id="copyListLinkButton" type="button">Copy</button>
+
+          <input
+            id="listLink"
+            readonly
+          >
+
+          <button
+            class="soft-button"
+            id="copyListLinkButton"
+            type="button"
+          >
+            Copy
+          </button>
+
         </div>
+
+
         <div class="button-row">
-          <button class="soft-button" id="openCreatedListButton" type="button">Open list</button>
-          <button class="soft-button" id="manageCreatedListButton" type="button">Manage list</button>
+
+          <button
+            class="soft-button"
+            id="openCreatedListButton"
+            type="button"
+          >
+            Open list
+          </button>
+
+
+          <button
+            class="soft-button"
+            id="manageCreatedListButton"
+            type="button"
+          >
+            Manage list
+          </button>
+
         </div>
+
       </div>
+
     </section>
 
-    <section id="groupCreatorScreen" class="screen hidden">
+
+    <!-- ===================================================
+         GROUP CREATOR
+    ==================================================== -->
+
+    <section
+      id="groupCreatorScreen"
+      class="screen hidden"
+    >
+
       <div class="page-heading">
+
         <div>
-          <p class="eyebrow">📚 Organize your lists</p>
-          <h1>Create a List Group</h1>
-          <p>Keep related lists together.</p>
+
+          <p class="eyebrow">
+            📚 Organize your lists
+          </p>
+
+          <h1>
+            Create a List Group
+          </h1>
+
+          <p>
+            Keep related lists together.
+          </p>
+
         </div>
+
       </div>
+
+
       <div class="card">
-        <label for="groupTitle">Group title</label>
-        <input id="groupTitle" class="text-input" maxlength="80" placeholder="e.g. Our Life">
+
+        <label for="groupTitle">
+          Group title
+        </label>
+
+        <input
+          id="groupTitle"
+          class="text-input"
+          maxlength="80"
+          placeholder="e.g. Our Life"
+        >
+
+
         <div class="button-row">
-          <button class="primary-button wide" id="saveGroupButton" type="button">＋ Create Group</button>
+
+          <button
+            class="primary-button wide"
+            id="saveGroupButton"
+            type="button"
+          >
+            ＋ Create Group
+          </button>
+
         </div>
+
       </div>
+
     </section>
 
-    <section id="responsesScreen" class="screen hidden">
+
+    <!-- ===================================================
+         RESPONSES
+    ==================================================== -->
+
+    <section
+      id="responsesScreen"
+      class="screen hidden"
+    >
+
       <div class="page-heading">
+
         <div>
-          <p class="eyebrow">💭 Your results</p>
-          <h1 id="responsesTitle">Responses</h1>
-          <p>Responses are shown here on your creator side.</p>
+
+          <p class="eyebrow">
+            💭 Your results
+          </p>
+
+          <h1 id="responsesTitle">
+            Responses
+          </h1>
+
+          <p>
+            Responses are shown here on your creator side.
+          </p>
+
         </div>
+
       </div>
+
+
       <div id="responsesList"></div>
+
     </section>
 
-    <section id="listManageScreen" class="screen hidden">
+
+    <!-- ===================================================
+         LIST MANAGEMENT
+    ==================================================== -->
+
+    <section
+      id="listManageScreen"
+      class="screen hidden"
+    >
+
       <div class="page-heading">
+
         <div>
-          <p class="eyebrow">☑️ Manage list</p>
-          <h1 id="manageListTitle">List</h1>
-          <p>Manage the items and sharing permission.</p>
+
+          <p class="eyebrow">
+            ☑️ Manage list
+          </p>
+
+          <h1 id="manageListTitle">
+            List
+          </h1>
+
+          <p>
+            Manage the items and sharing permission.
+          </p>
+
         </div>
+
       </div>
 
+
       <div class="card">
-        <label for="managePermission">Shared-person permission</label>
-        <select id="managePermission" class="text-input">
-          <option value="view">👀 View only</option>
-          <option value="check">☑️ Check items</option>
-          <option value="edit">✏️ Edit list</option>
-          <option value="full">🛠️ Full access</option>
+
+        <label for="manageListFriendSelect">
+          Shared with
+        </label>
+
+        <select
+          id="manageListFriendSelect"
+          class="text-input"
+        >
+
+          <option value="">
+            No friend selected
+          </option>
+
         </select>
-        <button class="soft-button" id="saveListPermissionButton" type="button">Save permission</button>
+
+
+        <label for="managePermission">
+          Shared-person permission
+        </label>
+
+        <select
+          id="managePermission"
+          class="text-input"
+        >
+
+          <option value="view">
+            👀 View only
+          </option>
+
+          <option value="check">
+            ☑️ Check items
+          </option>
+
+          <option value="edit">
+            ✏️ Edit list
+          </option>
+
+          <option value="full">
+            🛠️ Full access
+          </option>
+
+        </select>
+
+
+        <button
+          class="soft-button"
+          id="saveListPermissionButton"
+          type="button"
+        >
+          Save sharing
+        </button>
+
 
         <div class="divider"></div>
-        <label>Add an item</label>
+
+
+        <label>
+          Add an item
+        </label>
+
+
         <div class="inline-add">
-          <input id="manageNewItem" class="text-input" maxlength="200" placeholder="Something to add…">
-          <button class="primary-button" id="manageAddItemButton" type="button">Add</button>
+
+          <input
+            id="manageNewItem"
+            class="text-input"
+            maxlength="200"
+            placeholder="Something to add…"
+          >
+
+
+          <button
+            class="primary-button"
+            id="manageAddItemButton"
+            type="button"
+          >
+            Add
+          </button>
+
         </div>
+
       </div>
+
 
       <div class="card">
+
         <div id="manageItems"></div>
+
       </div>
+
 
       <div class="card created-share">
-        <p class="success-title">Share this list</p>
+
+        <p class="success-title">
+          Share this list
+        </p>
+
+
         <div class="share-box">
-          <input id="manageListLink" readonly>
-          <button class="soft-button" id="copyManageListLinkButton" type="button">Copy</button>
+
+          <input
+            id="manageListLink"
+            readonly
+          >
+
+
+          <button
+            class="soft-button"
+            id="copyManageListLinkButton"
+            type="button"
+          >
+            Copy
+          </button>
+
         </div>
+
       </div>
+
     </section>
 
-    <section id="playerScreen" class="screen hidden">
+
+    <!-- ===================================================
+         QUESTION PLAYER
+    ==================================================== -->
+
+    <section
+      id="playerScreen"
+      class="screen hidden"
+    >
+
       <div class="player-top">
+
         <div>
-          <span id="questionProgress">Question 1 of 1</span>
-          <div class="progress-track"><div id="progressBar"></div></div>
+
+          <span id="questionProgress">
+            Question 1 of 1
+          </span>
+
+          <div class="progress-track">
+            <div id="progressBar"></div>
+          </div>
+
         </div>
+
       </div>
-      <div id="scene" class="scene very-light">
-        <div class="scene-character" id="playerCharacter">🐰</div>
-        <div class="scene-decoration" id="sceneDecoration">✦</div>
+
+
+      <div
+        id="scene"
+        class="scene very-light"
+      >
+
+        <div
+          class="scene-character"
+          id="playerCharacter"
+        >
+          🐰
+        </div>
+
+        <div
+          class="scene-decoration"
+          id="sceneDecoration"
+        >
+          ✦
+        </div>
+
       </div>
+
+
       <div class="card player-card">
-        <div id="categoryBadge" class="category-badge">🌼 Very Light</div>
-        <div id="sensitiveBuffer" class="sensitive-buffer hidden">💗 Take your time.</div>
+
+        <div
+          id="categoryBadge"
+          class="category-badge"
+        >
+          🌼 Very Light
+        </div>
+
+
+        <div
+          id="sensitiveBuffer"
+          class="sensitive-buffer hidden"
+        >
+          💗 Take your time.
+        </div>
+
+
         <h1 id="playerQuestion"></h1>
+
+
         <button
           type="button"
           class="ai-help-button"
           id="questionHelpButton"
         >
-          <span class="ai-bulb">💡</span> Help me understand
+          <span class="ai-bulb">💡</span>
+          Help me understand
         </button>
+
 
         <div
           id="questionHelpResult"
           class="ai-result hidden"
         ></div>
 
+
         <div id="writtenAnswerArea">
-          <textarea id="writtenAnswer" class="text-input textarea large" maxlength="3000" placeholder="Write whatever feels comfortable…"></textarea>
+
+          <textarea
+            id="writtenAnswer"
+            class="text-input textarea large"
+            maxlength="3000"
+            placeholder="Write whatever feels comfortable…"
+          ></textarea>
+
         </div>
 
-        <div id="choiceAnswerArea" class="hidden">
-          <p class="choice-hint">Select all that apply.</p>
-          <div id="choiceList" class="player-choice-list"></div>
-          <div id="customAnswerArea" class="hidden">
-            <input id="customAnswer" class="text-input" maxlength="300" placeholder="Something else…">
+
+        <div
+          id="choiceAnswerArea"
+          class="hidden"
+        >
+
+          <p class="choice-hint">
+            Select all that apply.
+          </p>
+
+
+          <div
+            id="choiceList"
+            class="player-choice-list"
+          ></div>
+
+
+          <div
+            id="customAnswerArea"
+            class="hidden"
+          >
+
+            <input
+              id="customAnswer"
+              class="text-input"
+              maxlength="300"
+              placeholder="Something else…"
+            >
+
           </div>
+
         </div>
+
 
         <div class="player-actions">
-          <!-- <button class="soft-button" id="skipButton" type="button">🌸 Skip for now</button> -->
-          <!-- <button class="soft-button" id="talkButton" type="button">🫶 I'd rather talk about this</button> -->
-          <button class="primary-button wide" id="nextQuestionButton" type="button">Save answer →</button>
+
+          <button
+            class="primary-button wide"
+            id="nextQuestionButton"
+            type="button"
+          >
+            Save answer →
+          </button>
+
         </div>
+
       </div>
+
     </section>
 
-    <section id="listPlayerScreen" class="screen hidden">
+
+    <!-- ===================================================
+         LIST PLAYER
+    ==================================================== -->
+
+    <section
+      id="listPlayerScreen"
+      class="screen hidden"
+    >
+
       <div class="scene list-scene">
-        <div class="scene-character" id="listCharacter">🐻</div>
-        <div class="scene-decoration">🌷</div>
-      </div>
-      <div class="card list-player-card">
-        <div class="category-badge">☑️ Shared list</div>
-        <h1 id="playerListTitle"></h1>
-        <p id="playerListPermission" class="muted"></p>
-        <div id="playerListItems"></div>
-        <div class="inline-add hidden" id="playerAddArea">
-          <input id="playerNewItem" class="text-input" maxlength="200" placeholder="Add something…">
-          <button class="primary-button" id="playerAddItemButton" type="button">Add</button>
+
+        <div
+          class="scene-character"
+          id="listCharacter"
+        >
+          🐻
         </div>
-        <p class="list-footer">Little things count too. ♡</p>
+
+        <div class="scene-decoration">
+          🌷
+        </div>
+
       </div>
+
+
+      <div class="card list-player-card">
+
+        <div class="category-badge">
+          ☑️ Shared list
+        </div>
+
+
+        <h1 id="playerListTitle"></h1>
+
+
+        <p
+          id="playerListPermission"
+          class="muted"
+        ></p>
+
+
+        <div id="playerListItems"></div>
+
+
+        <div
+          class="inline-add hidden"
+          id="playerAddArea"
+        >
+
+          <input
+            id="playerNewItem"
+            class="text-input"
+            maxlength="200"
+            placeholder="Add something…"
+          >
+
+
+          <button
+            class="primary-button"
+            id="playerAddItemButton"
+            type="button"
+          >
+            Add
+          </button>
+
+        </div>
+
+
+        <p class="list-footer">
+          Little things count too. ♡
+        </p>
+
+      </div>
+
     </section>
 
-    <section id="finishScreen" class="screen center-screen hidden">
+
+    <!-- ===================================================
+         FINISH
+    ==================================================== -->
+
+    <section
+      id="finishScreen"
+      class="screen center-screen hidden"
+    >
+
       <div class="finish-card">
-        <div class="finish-characters">🐰 💗 🐻</div>
-        <h1>That's everything for now.</h1>
-        <p>Thanks for answering in the way that felt comfortable. 🌷</p>
-        <button class="primary-button" id="finishHomeButton" type="button">Back to Between Us</button>
+
+        <div class="finish-characters">
+          🐰 💗 🐻
+        </div>
+
+        <h1>
+          That's everything for now.
+        </h1>
+
+        <p>
+          Thanks for answering in the way that felt comfortable. 🌷
+        </p>
+
+        <button
+          class="primary-button"
+          id="finishHomeButton"
+          type="button"
+        >
+          Back to Between Us
+        </button>
+
       </div>
+
     </section>
+
   </main>
 
-  <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="js/script.js"></script>
+
+  <!-- =====================================================
+       TOAST
+  ====================================================== -->
+
+  <div
+    id="toast"
+    class="toast"
+    role="status"
+  ></div>
+
+
+  <script
+    type="module"
+    src="js/script.js"
+  ></script>
+
 </body>
 </html>
+

@@ -1,25 +1,37 @@
 import {
   db,
-  startAnonymousAuth
+  auth,
+  startAnonymousAuth,
+  signInWithWorkerToken,
+  getCurrentIdToken,
+  logout,
+  onAuthStateChanged
 } from "./firebase.js";
 
 import {
-  collection,
-  doc,
-  addDoc,
-  setDoc,
-  getDoc,
-  getDocs,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  orderBy,
-  serverTimestamp
+collection,
+doc,
+addDoc,
+setDoc,
+getDoc,
+getDocs,
+updateDoc,
+deleteDoc,
+query,
+where,
+orderBy,
+limit,
+serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const AI_WORKER_URL =
   "https://between-us-ai.newoshadow21.workers.dev";
+
+const AUTH_WORKER_URL =
+"https://between-us-auth.newoshadow21.workers.dev";
+
+// import { logout } from "./firebase.js";
+
 
 /* =========================================================
    AI HELPER
@@ -188,6 +200,7 @@ const $ = (id) =>
   document.getElementById(id);
 
 let currentUser = null;
+let username = "";
 
 let creatorQuestions = [];
 let editingQuestionId = null;
@@ -202,9 +215,11 @@ let currentListId = null;
 let currentList = null;
 let currentListItems = [];
 
+let dashboardSharedLists = [];
 let dashboardGames = [];
 let dashboardLists = [];
 let dashboardGroups = [];
+
 
 /* =========================================================
    CATEGORIES
@@ -281,11 +296,12 @@ function showScreen(id) {
     behavior: "smooth"
   });
 
-  $("backButton").classList.toggle(
-    "hidden",
-    id === "landingScreen" ||
-    id === "loadingScreen"
-  );
+$("backButton").classList.toggle(
+  "hidden",
+  id === "landingScreen" ||
+  id === "loadingScreen" ||
+  id === "usernameScreen"
+);
 }
 
 /* =========================================================
@@ -397,13 +413,2136 @@ function formatDate(timestamp) {
 }
 
 /* =========================================================
+   USERNAME
+========================================================= */
+
+
+
+
+
+
+/* =========================================================
+   ACCOUNT / USERNAME
+========================================================= */
+
+async function loadUsername() {
+
+  if (!currentUser) {
+    return null;
+  }
+
+  try {
+
+    const userRef =
+      doc(
+        db,
+        "users",
+        currentUser.uid
+      );
+
+    const snap =
+      await getDoc(userRef);
+
+    if (!snap.exists()) {
+      return null;
+    }
+
+    return snap.data().username || null;
+
+  } catch (error) {
+
+    console.error(
+      "LOAD USERNAME ERROR:",
+      error
+    );
+
+    return null;
+  }
+}
+
+
+/* =========================================================
+   USERNAME VALIDATION
+========================================================= */
+
+function validateUsername(value) {
+
+  const name =
+    value.trim();
+
+  if (!name) {
+    return "Please enter a username.";
+  }
+
+  if (name.length < 3) {
+    return "Your username needs at least 3 characters.";
+  }
+
+  if (name.length > 20) {
+    return "Your username can be up to 20 characters.";
+  }
+
+  if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
+    return "Use only letters, numbers, _ or -.";
+  }
+
+  return null;
+}
+
+
+/* =========================================================
+   ACCOUNT ERROR
+========================================================= */
+
+function showAccountError(message) {
+
+  const usernameError =
+    $("usernameError");
+
+  if (!usernameError) {
+    return;
+  }
+
+  usernameError.textContent =
+    message || "";
+
+  usernameError.classList.toggle(
+    "hidden",
+    !message
+  );
+}
+
+
+/* =========================================================
+   UPDATE USERNAME DISPLAY
+========================================================= */
+
+function updateUsernameDisplay() {
+
+  const display =
+    $("usernameDisplay");
+
+  if (!display) {
+    return;
+  }
+
+  if (username) {
+
+    display.textContent =
+      username;
+
+    display.classList.remove(
+      "hidden"
+    );
+
+  } else {
+
+    display.textContent =
+      "";
+
+    display.classList.add(
+      "hidden"
+    );
+  }
+}
+
+
+/* =========================================================
+   SHOW USERNAME / ACCOUNT SCREEN
+========================================================= */
+
+function showUsernameScreen(mode = "create", hasExistingSpace = false) {
+
+  showScreen(
+    "usernameScreen"
+  );
+
+  const title =
+    $("accountScreenTitle");
+
+  const description =
+    $("accountScreenDescription");
+
+  const loginArea =
+    $("loginAccountArea");
+
+  const createArea =
+    $("createAccountArea");
+
+  const anonymousArea =
+    $("anonymousAccountArea");
+
+
+  /* =====================================================
+     TITLE
+  ===================================================== */
+
+  if (title) {
+
+    title.textContent =
+      mode === "login"
+        ? "Welcome back ♡"
+        : hasExistingSpace
+          ? "Welcome back to your space ♡"
+          : "Make your Between Us yours ♡";
+  }
+
+
+  /* =====================================================
+     DESCRIPTION
+  ===================================================== */
+
+  if (description) {
+
+    description.textContent =
+      mode === "login"
+
+        ? "Log in with your username and password to access your Between Us space."
+
+        : hasExistingSpace
+
+          ? "Your existing Between Us space is ready. Secure it with an account so you can access it from another device."
+
+          : "Create a private account so you can come back from another device.";
+  }
+
+
+  /* =====================================================
+     LOGIN AREA
+  ===================================================== */
+
+  if (loginArea) {
+
+    loginArea.classList.toggle(
+      "hidden",
+      mode !== "login"
+    );
+  }
+
+
+  /* =====================================================
+     CREATE AREA
+  ===================================================== */
+
+  if (createArea) {
+
+    createArea.classList.toggle(
+      "hidden",
+      mode !== "create"
+    );
+  }
+
+
+  /* =====================================================
+     EXISTING ANONYMOUS SPACE AREA
+  ===================================================== */
+
+  if (anonymousArea) {
+
+    anonymousArea.classList.toggle(
+      "hidden",
+      !hasExistingSpace
+    );
+  }
+
+
+  /* =====================================================
+     ACCOUNT MODE
+  ===================================================== */
+
+  document
+    .querySelectorAll(
+      'input[name="accountMode"]'
+    )
+    .forEach(input => {
+
+      input.checked =
+        input.value === mode;
+    });
+
+
+  showAccountError("");
+
+
+  /* =====================================================
+     FOCUS
+  ===================================================== */
+
+  if (mode === "login") {
+
+    $("loginUsernameInput")?.focus();
+
+  } else {
+
+    $("usernameInput")?.focus();
+  }
+}
+
+
+/* =========================================================
+   COMPLETE LOGIN
+========================================================= */
+
+async function loginAccount() {
+
+  const usernameInput =
+    $("loginUsernameInput");
+
+  const passwordInput =
+    $("loginPasswordInput");
+
+  const button =
+    $("loginAccountButton");
+
+  if (!usernameInput || !passwordInput) {
+    return;
+  }
+
+  const loginUsername =
+    usernameInput.value.trim();
+
+  const password =
+    passwordInput.value;
+
+  if (!loginUsername) {
+
+    return showAccountError(
+      "Enter your username."
+    );
+  }
+
+  if (!password) {
+
+    return showAccountError(
+      "Enter your password."
+    );
+  }
+
+  showAccountError("");
+
+  if (button) {
+
+    button.disabled = true;
+    button.textContent = "Logging in…";
+  }
+
+  try {
+
+    const response =
+      await fetch(
+        `${AUTH_WORKER_URL}/login`,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body: JSON.stringify({
+            username:
+              loginUsername,
+
+            password
+          })
+        }
+      );
+
+    const data =
+      await response.json();
+
+    if (!response.ok) {
+
+      throw new Error(
+        data.error ||
+        "Login failed."
+      );
+    }
+
+    if (!data.token) {
+
+      throw new Error(
+        "The authentication server did not return a token."
+      );
+    }
+
+    /*
+     * This replaces the anonymous Firebase user
+     * with the permanent Firebase account.
+     */
+    currentUser =
+      await signInWithWorkerToken(
+        data.token
+      );
+
+    username =
+      data.username ||
+      loginUsername;
+
+    localStorage.setItem(
+      "betweenUsUsername",
+      username
+    );
+
+    updateUsernameDisplay();
+
+    showAccountError("");
+
+    /*
+     * Clear password fields.
+     */
+    passwordInput.value = "";
+
+    $("loginUsernameInput").value =
+      "";
+
+    /*
+     * Go to the normal Between Us home.
+     */
+    $("homeContent")
+      .classList
+      .remove("hidden");
+
+    showScreen(
+      "landingScreen"
+    );
+
+    await loadDashboard();
+
+    toast(
+      `Welcome back, ${username} ♡`
+    );
+
+  } catch (error) {
+
+    console.error(
+      "LOGIN ERROR:",
+      error
+    );
+
+    showAccountError(
+      error.message ||
+      "Couldn't log you in. Please check your username and password."
+    );
+
+  } finally {
+
+    if (button) {
+
+      button.disabled = false;
+      button.textContent =
+        "Log in ♡";
+    }
+  }
+}
+
+
+/* =========================================================
+   CREATE ACCOUNT
+========================================================= */
+
+async function createAccount() {
+
+  const usernameInput =
+    $("usernameInput");
+
+  const passwordInput =
+    $("accountPasswordInput");
+
+  const confirmInput =
+    $("accountPasswordConfirmInput");
+
+  const button =
+    $("submitUsernameButton");
+
+  if (
+    !usernameInput ||
+    !passwordInput ||
+    !confirmInput
+  ) {
+    return;
+  }
+
+  const newUsername =
+    usernameInput.value.trim();
+
+  const password =
+    passwordInput.value;
+
+  const confirmPassword =
+    confirmInput.value;
+
+  const validationError =
+    validateUsername(
+      newUsername
+    );
+
+  if (validationError) {
+
+    return showAccountError(
+      validationError
+    );
+  }
+
+  if (password.length < 8) {
+
+    return showAccountError(
+      "Your password needs at least 8 characters."
+    );
+  }
+
+  if (password !== confirmPassword) {
+
+    return showAccountError(
+      "Your passwords don't match."
+    );
+  }
+
+  /*
+   * Creating an account is specifically meant
+   * to upgrade the current anonymous Firebase user.
+   */
+  if (
+    !currentUser ||
+    !currentUser.isAnonymous
+  ) {
+
+    return showAccountError(
+      "This account is already signed in."
+    );
+  }
+
+  showAccountError("");
+
+  if (button) {
+
+    button.disabled = true;
+    button.textContent =
+      "Creating account ♡";
+  }
+
+  try {
+
+    /*
+     * Get a fresh Firebase ID token proving
+     * that this anonymous user owns the UID.
+     */
+    const idToken =
+      await getCurrentIdToken();
+
+    const response =
+      await fetch(
+        `${AUTH_WORKER_URL}/create-account`,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body: JSON.stringify({
+            username:
+              newUsername,
+
+            password,
+
+            idToken
+          })
+        }
+      );
+
+    const data =
+      await response.json();
+
+    if (!response.ok) {
+
+      throw new Error(
+        data.error ||
+        "Couldn't create the account."
+      );
+    }
+
+    if (!data.token) {
+
+      throw new Error(
+        "The authentication server did not return a token."
+      );
+    }
+
+    /*
+     * IMPORTANT:
+     *
+     * The Worker uses the EXISTING anonymous UID.
+     *
+     * Signing in with this custom token therefore
+     * keeps all existing games/lists attached to
+     * the same Firebase UID.
+     */
+    currentUser =
+      await signInWithWorkerToken(
+        data.token
+      );
+
+    username =
+      data.username ||
+      newUsername;
+
+    localStorage.setItem(
+      "betweenUsUsername",
+      username
+    );
+
+    /*
+     * Clear account fields.
+     */
+    usernameInput.value = "";
+    passwordInput.value = "";
+    confirmInput.value = "";
+
+    updateUsernameDisplay();
+
+    $("homeContent")
+      .classList
+      .remove("hidden");
+
+    showScreen(
+      "landingScreen"
+    );
+
+    await loadDashboard();
+
+    toast(
+      "Your Between Us account is secured ♡"
+    );
+
+  } catch (error) {
+
+    console.error(
+      "CREATE ACCOUNT ERROR:",
+      error
+    );
+
+    showAccountError(
+      error.message ||
+      "Couldn't create your account."
+    );
+
+  } finally {
+
+    if (button) {
+
+      button.disabled = false;
+      button.textContent =
+        "Create account ♡";
+    }
+  }
+}
+$("submitUsernameButton")?.addEventListener(
+  "click",
+  createAccount
+);
+/* =========================================================
+   CONTINUE ANONYMOUSLY
+========================================================= */
+
+async function continueAnonymous() {
+
+  try {
+
+    if (!currentUser) {
+
+      currentUser =
+        await startAnonymousAuth();
+    }
+
+    $("homeContent")
+      .classList
+      .remove("hidden");
+
+    showScreen(
+      "landingScreen"
+    );
+
+    await loadDashboard();
+
+  } catch (error) {
+
+    console.error(
+      "CONTINUE ANONYMOUS ERROR:",
+      error
+    );
+
+    toast(
+      "Couldn't start your Between Us space."
+    );
+  }
+}
+
+
+/* =========================================================
+   ACCOUNT MODE SWITCH
+========================================================= */
+
+document
+  .querySelectorAll(
+    'input[name="accountMode"]'
+  )
+  .forEach(input => {
+
+    input.addEventListener(
+      "change",
+      () => {
+
+        showUsernameScreen(
+          input.value
+        );
+
+      }
+    );
+
+  });
+
+
+/* =========================================================
+   ACCOUNT BUTTONS
+========================================================= */
+
+$("loginAccountButton")
+  ?.addEventListener(
+    "click",
+    loginAccount
+  );
+
+$("submitUsernameButton")
+  ?.addEventListener(
+    "click",
+    createAccount
+  );
+
+$("continueAnonymousButton")
+  ?.addEventListener(
+    "click",
+    continueAnonymous
+  );
+
+
+$("loginPasswordInput")
+  ?.addEventListener(
+    "keydown",
+    event => {
+
+      if (
+        event.key === "Enter"
+      ) {
+
+        event.preventDefault();
+
+        loginAccount();
+      }
+    }
+  );
+
+
+$("accountPasswordConfirmInput")
+  ?.addEventListener(
+    "keydown",
+    event => {
+
+      if (
+        event.key === "Enter"
+      ) {
+
+        event.preventDefault();
+
+        createAccount();
+      }
+    }
+  );
+
+
+/* =========================================================
+   OLD USERNAME BUTTON
+   Kept for compatibility with the existing HTML.
+========================================================= */
+
+// $("submitUsernameButton")
+//   ?.addEventListener(
+//     "click",
+//     async () => {
+
+//       /*
+//        * Old anonymous username-only flow.
+//        *
+//        * This remains available for users who choose
+//        * to continue without creating a password.
+//        */
+
+//       const input =
+//         $("usernameInput");
+
+//       if (!input) {
+//         return;
+//       }
+
+//       const name =
+//         input.value.trim();
+
+//       const validationError =
+//         validateUsername(name);
+
+//       if (validationError) {
+
+//         return showAccountError(
+//           validationError
+//         );
+//       }
+
+//       if (!currentUser) {
+
+//         return showAccountError(
+//           "Your Between Us space hasn't started yet."
+//         );
+//       }
+
+//       const button =
+//         $("submitUsernameButton");
+
+//       if (button) {
+
+//         button.disabled = true;
+//         button.textContent =
+//           "Saving…";
+//       }
+
+//       try {
+
+//         const usernameLower =
+//           name.toLowerCase();
+
+//         // await setDoc(
+//         //   doc(
+//         //     db,
+//         //     "users",
+//         //     currentUser.uid
+//         //   ),
+//         //   {
+//         //     username:
+//         //       name,
+
+//         //     usernameLower,
+
+//         //     updatedAt:
+//         //       serverTimestamp()
+//         //   },
+//         //   {
+//         //     merge: true
+//         //   }
+//         // );
+
+//         /*
+//          * Only create the public username directory
+//          * when this is still an anonymous user.
+//          *
+//          * Account creation itself is handled by the
+//          * auth Worker and creates this directory safely.
+//          */
+//         await setDoc(
+//           doc(
+//             db,
+//             "usernames",
+//             usernameLower
+//           ),
+//           {
+//             uid:
+//               currentUser.uid,
+
+//             username:
+//               name,
+
+//             createdAt:
+//               serverTimestamp()
+//           }
+//         );
+
+//         username =
+//           name;
+
+//         localStorage.setItem(
+//           "betweenUsUsername",
+//           name
+//         );
+
+//         updateUsernameDisplay();
+
+//         $("homeContent")
+//           .classList
+//           .remove("hidden");
+
+//         showScreen(
+//           "landingScreen"
+//         );
+
+//         await loadDashboard();
+
+//       } catch (error) {
+
+//         console.error(
+//           "USERNAME ERROR:",
+//           error
+//         );
+
+//           console.error(
+//     "CURRENT UID:",
+//     currentUser?.uid
+//   );
+
+//   console.error(
+//     "IS ANONYMOUS:",
+//     currentUser?.isAnonymous
+//   );
+
+//   console.error(
+//     "USERNAME:",
+//     name
+//   );
+
+//         showAccountError(
+//           "Couldn't save your username. Please try again."
+//         );
+
+//       } finally {
+
+//         if (button) {
+
+//           button.disabled = false;
+//           button.textContent =
+//             "Continue ♡";
+//         }
+//       }
+//     }
+//   );
+
+
+$("usernameInput")
+  ?.addEventListener(
+    "keydown",
+    event => {
+
+      if (
+        event.key === "Enter"
+      ) {
+
+        event.preventDefault();
+
+        createAccount();
+      }
+    }
+  );
+
+
+// =====================================================
+// FRIENDS
+// =====================================================
+
+function makeFriendshipId(uid1, uid2) {
+  return [uid1, uid2]
+    .sort()
+    .join("_");
+}
+
+function makeFriendRequestId(fromUid, toUid) {
+  return `${fromUid}_${toUid}`;
+}
+
+
+// -----------------------------------------------------
+// Search for a user by username
+// -----------------------------------------------------
+
+async function searchFriendByUsername() {
+
+  const input = $("friendSearchInput");
+  const result = $("friendSearchResult");
+
+  if (!currentUser) {
+    return;
+  }
+
+  const searchedUsername = input.value.trim();
+
+  result.innerHTML = "";
+
+  if (!searchedUsername) {
+
+    result.innerHTML = `
+      <div class="mini-empty">
+        Enter a username to search. ♡
+      </div>
+    `;
+
+    return;
+  }
+
+  const usernameLower =
+    searchedUsername.toLowerCase();
+
+  try {
+
+    // -----------------------------------------------
+    // Find username
+    // -----------------------------------------------
+
+console.log("FRIEND SEARCH 1: checking username");
+
+const usernameSnap = await getDoc(
+  doc(
+    db,
+    "usernames",
+    usernameLower
+  )
+);
+
+console.log("FRIEND SEARCH 1 SUCCESS");
+
+    if (!usernameSnap.exists()) {
+
+      result.innerHTML = `
+        <div class="mini-empty">
+          No one with that username was found. 🌷
+        </div>
+      `;
+
+      return;
+    }
+
+    const foundUser =
+      usernameSnap.data();
+
+
+    // -----------------------------------------------
+    // Don't allow self
+    // -----------------------------------------------
+
+    if (
+      foundUser.uid === currentUser.uid
+    ) {
+
+      result.innerHTML = `
+        <div class="mini-empty">
+          That's you! ♡
+        </div>
+      `;
+
+      return;
+    }
+
+
+    // -----------------------------------------------
+    // Check existing friendship
+    // -----------------------------------------------
+
+    const friendshipId =
+      makeFriendshipId(
+        currentUser.uid,
+        foundUser.uid
+      );
+
+   console.log("FRIEND SEARCH 2: checking friendship");
+
+const friendshipSnap =
+  await getDoc(
+    doc(
+      db,
+      "friendships",
+      friendshipId
+    )
+  );
+
+console.log(
+  "FRIEND SEARCH 2 SUCCESS",
+  friendshipSnap.exists()
+);
+
+    if (friendshipSnap.exists()) {
+
+      result.innerHTML = `
+        <div class="friend-result">
+
+          <div class="friend-avatar">
+            ♡
+          </div>
+
+          <div class="friend-info">
+            <strong>
+              ${escapeHtml(foundUser.username)}
+            </strong>
+
+            <small>
+              Already your friend ♡
+            </small>
+          </div>
+
+        </div>
+      `;
+
+      return;
+    }
+
+
+    // -----------------------------------------------
+    // Check outgoing request
+    // -----------------------------------------------
+
+    const outgoingRequestId =
+      makeFriendRequestId(
+        currentUser.uid,
+        foundUser.uid
+      );
+
+console.log("FRIEND SEARCH 3: checking outgoing request");
+
+const outgoingSnap =
+  await getDoc(
+    doc(
+      db,
+      "friendRequests",
+      outgoingRequestId
+    )
+  );
+
+console.log("FRIEND SEARCH 3 SUCCESS");
+    if (
+      outgoingSnap.exists() &&
+      outgoingSnap.data().status === "pending"
+    ) {
+
+      result.innerHTML = `
+        <div class="friend-result">
+
+          <div class="friend-avatar">
+            ♡
+          </div>
+
+          <div class="friend-info">
+
+            <strong>
+              ${escapeHtml(foundUser.username)}
+            </strong>
+
+            <small>
+              Friend request already sent ♡
+            </small>
+
+          </div>
+
+        </div>
+      `;
+
+      return;
+    }
+
+
+    // -----------------------------------------------
+    // Check incoming request
+    // -----------------------------------------------
+
+    const incomingRequestId =
+      makeFriendRequestId(
+        foundUser.uid,
+        currentUser.uid
+      );
+
+console.log("FRIEND SEARCH 4: checking incoming request");
+
+const incomingSnap =
+  await getDoc(
+    doc(
+      db,
+      "friendRequests",
+      incomingRequestId
+    )
+  );
+
+console.log("FRIEND SEARCH 4 SUCCESS");
+
+    if (
+      incomingSnap.exists() &&
+      incomingSnap.data().status === "pending"
+    ) {
+
+      result.innerHTML = `
+        <div class="friend-result">
+
+          <div class="friend-avatar">
+            ♡
+          </div>
+
+          <div class="friend-info">
+
+            <strong>
+              ${escapeHtml(foundUser.username)}
+            </strong>
+
+            <small>
+              This person already sent you a request.
+            </small>
+
+          </div>
+
+          <button
+            class="soft-button"
+            type="button"
+            id="viewIncomingRequestButton"
+          >
+            View Request
+          </button>
+
+        </div>
+      `;
+
+      $("viewIncomingRequestButton")
+        ?.addEventListener(
+          "click",
+          showFriendRequests
+        );
+
+      return;
+    }
+
+
+    // -----------------------------------------------
+    // Normal result
+    // -----------------------------------------------
+
+    result.innerHTML = `
+      <div class="friend-result">
+
+        <div class="friend-avatar">
+          ♡
+        </div>
+
+        <div class="friend-info">
+
+          <strong>
+            ${escapeHtml(foundUser.username)}
+          </strong>
+
+          <small>
+            Between Us friend
+          </small>
+
+        </div>
+
+        <button
+          class="primary-button"
+          type="button"
+          id="sendFriendRequestButton"
+        >
+          Add Friend ♡
+        </button>
+
+      </div>
+    `;
+
+    $("sendFriendRequestButton")
+      ?.addEventListener(
+        "click",
+        () => sendFriendRequest(foundUser)
+      );
+
+  } catch (error) {
+
+    console.error(
+      "FRIEND SEARCH ERROR:",
+      error
+    );
+
+    result.innerHTML = `
+      <div class="mini-empty">
+        Something went wrong while searching.
+        Please try again.
+      </div>
+    `;
+  }
+}
+
+
+// -----------------------------------------------------
+// Send friend request
+// -----------------------------------------------------
+
+async function sendFriendRequest(targetUser) {
+
+  if (!currentUser) {
+    return;
+  }
+
+  if (
+    targetUser.uid === currentUser.uid
+  ) {
+    return;
+  }
+
+  try {
+
+    // -----------------------------------------------
+    // Get sender profile
+    // -----------------------------------------------
+
+    const senderSnap =
+      await getDoc(
+        doc(
+          db,
+          "users",
+          currentUser.uid
+        )
+      );
+
+    if (!senderSnap.exists()) {
+
+      showToast(
+        "Please set your username first."
+      );
+
+      return;
+    }
+
+    const sender =
+      senderSnap.data();
+
+
+    // -----------------------------------------------
+    // Check friendship
+    // -----------------------------------------------
+
+    const friendshipId =
+      makeFriendshipId(
+        currentUser.uid,
+        targetUser.uid
+      );
+
+    const friendshipSnap =
+      await getDoc(
+        doc(
+          db,
+          "friendships",
+          friendshipId
+        )
+      );
+
+    if (friendshipSnap.exists()) {
+
+      showToast(
+        "You're already friends. ♡"
+      );
+
+      return;
+    }
+
+
+    // -----------------------------------------------
+    // Deterministic request ID
+    // -----------------------------------------------
+
+    const requestId =
+      makeFriendRequestId(
+        currentUser.uid,
+        targetUser.uid
+      );
+
+
+    // -----------------------------------------------
+    // Check outgoing request
+    // -----------------------------------------------
+
+    const existingRequestSnap =
+      await getDoc(
+        doc(
+          db,
+          "friendRequests",
+          requestId
+        )
+      );
+
+    if (
+      existingRequestSnap.exists() &&
+      existingRequestSnap.data().status === "pending"
+    ) {
+
+      showToast(
+        "Friend request already sent."
+      );
+
+      return;
+    }
+
+
+    // -----------------------------------------------
+    // Check if they already requested us
+    // -----------------------------------------------
+
+    const incomingRequestId =
+      makeFriendRequestId(
+        targetUser.uid,
+        currentUser.uid
+      );
+
+    const incomingRequestSnap =
+      await getDoc(
+        doc(
+          db,
+          "friendRequests",
+          incomingRequestId
+        )
+      );
+
+    if (
+      incomingRequestSnap.exists() &&
+      incomingRequestSnap.data().status === "pending"
+    ) {
+
+      showToast(
+        "They already sent you a friend request. ♡"
+      );
+
+      await showFriendRequests();
+
+      return;
+    }
+
+
+    // -----------------------------------------------
+    // Create request
+    // -----------------------------------------------
+
+    await setDoc(
+      doc(
+        db,
+        "friendRequests",
+        requestId
+      ),
+      {
+        fromUid:
+          currentUser.uid,
+
+        fromUsername:
+          sender.username,
+
+        toUid:
+          targetUser.uid,
+
+        toUsername:
+          targetUser.username,
+
+        status:
+          "pending",
+
+        createdAt:
+          serverTimestamp()
+      }
+    );
+
+
+    // -----------------------------------------------
+    // Update search result
+    // -----------------------------------------------
+
+    $("friendSearchResult").innerHTML = `
+      <div class="friend-result">
+
+        <div class="friend-avatar">
+          ♡
+        </div>
+
+        <div class="friend-info">
+
+          <strong>
+            ${escapeHtml(targetUser.username)}
+          </strong>
+
+          <small>
+            Friend request sent ♡
+          </small>
+
+        </div>
+
+      </div>
+    `;
+
+    showToast(
+      "Friend request sent ♡"
+    );
+
+  } catch (error) {
+
+    console.error(
+      "SEND FRIEND REQUEST ERROR:",
+      error
+    );
+
+    showToast(
+      "Couldn't send the friend request."
+    );
+  }
+}
+
+
+// -----------------------------------------------------
+// Show incoming friend requests
+// -----------------------------------------------------
+
+async function showFriendRequests() {
+
+  showFriendsPanel("requests");
+
+  const list =
+    $("friendRequestsList");
+
+  const empty =
+    $("friendRequestsEmpty");
+
+  if (!currentUser) {
+    return;
+  }
+
+  list.innerHTML = `
+    <div class="mini-empty">
+      Loading requests…
+    </div>
+  `;
+
+  try {
+
+    // Only retrieve requests addressed to this user.
+    // This is allowed by the Firestore rules.
+
+    const requestsQuery =
+      query(
+        collection(
+          db,
+          "friendRequests"
+        ),
+        where(
+          "toUid",
+          "==",
+          currentUser.uid
+        ),
+        where(
+          "status",
+          "==",
+          "pending"
+        ),
+        orderBy(
+          "createdAt",
+          "desc"
+        )
+      );
+
+    const snapshot =
+      await getDocs(
+        requestsQuery
+      );
+
+    list.innerHTML = "";
+
+    if (snapshot.empty) {
+
+      empty.classList.remove(
+        "hidden"
+      );
+
+      return;
+    }
+
+    empty.classList.add(
+      "hidden"
+    );
+
+
+    snapshot.forEach(
+      requestDoc => {
+
+        const request =
+          requestDoc.data();
+
+        const requestId =
+          requestDoc.id;
+
+        const item =
+          document.createElement(
+            "div"
+          );
+
+        item.className =
+          "friend-result";
+
+        item.innerHTML = `
+          <div class="friend-avatar">
+            ♡
+          </div>
+
+          <div class="friend-info">
+
+            <strong>
+              ${escapeHtml(
+                request.fromUsername
+              )}
+            </strong>
+
+            <small>
+              Wants to be your Between Us friend ♡
+            </small>
+
+          </div>
+
+          <div class="friend-actions">
+
+            <button
+              class="primary-button"
+              type="button"
+              data-accept-request="${requestId}"
+            >
+              Accept
+            </button>
+
+            <button
+              class="soft-button"
+              type="button"
+              data-decline-request="${requestId}"
+            >
+              Decline
+            </button>
+
+          </div>
+        `;
+
+        list.appendChild(
+          item
+        );
+      }
+    );
+
+
+    // ---------------------------------------------
+    // Accept buttons
+    // ---------------------------------------------
+
+    document
+      .querySelectorAll(
+        "[data-accept-request]"
+      )
+      .forEach(
+        button => {
+
+          button.addEventListener(
+            "click",
+            async () => {
+
+              const requestId =
+                button.dataset
+                  .acceptRequest;
+
+              const requestSnap =
+                await getDoc(
+                  doc(
+                    db,
+                    "friendRequests",
+                    requestId
+                  )
+                );
+
+              if (
+                !requestSnap.exists()
+              ) {
+                showToast(
+                  "That request no longer exists."
+                );
+
+                await showFriendRequests();
+
+                return;
+              }
+
+              await acceptFriendRequest(
+                requestId,
+                requestSnap.data()
+              );
+            }
+          );
+        }
+      );
+
+
+    // ---------------------------------------------
+    // Decline buttons
+    // ---------------------------------------------
+
+    document
+      .querySelectorAll(
+        "[data-decline-request]"
+      )
+      .forEach(
+        button => {
+
+          button.addEventListener(
+            "click",
+            () => {
+
+              const requestId =
+                button.dataset
+                  .declineRequest;
+
+              declineFriendRequest(
+                requestId
+              );
+            }
+          );
+        }
+      );
+
+  } catch (error) {
+
+    console.error(
+      "LOAD FRIEND REQUESTS ERROR:",
+      error
+    );
+
+    list.innerHTML = `
+      <div class="mini-empty">
+        Couldn't load your friend requests.
+      </div>
+    `;
+  }
+}
+
+
+// -----------------------------------------------------
+// Accept request
+// -----------------------------------------------------
+
+async function acceptFriendRequest(
+  requestId,
+  request
+) {
+
+  if (!currentUser) {
+    return;
+  }
+
+  try {
+
+    const friendshipId =
+      makeFriendshipId(
+        currentUser.uid,
+        request.fromUid
+      );
+
+
+    // ---------------------------------------------
+    // Create friendship
+    // ---------------------------------------------
+
+    await setDoc(
+      doc(
+        db,
+        "friendships",
+        friendshipId
+      ),
+      {
+        users: [
+          currentUser.uid,
+          request.fromUid
+        ],
+
+        user1Uid:
+          currentUser.uid,
+
+        user1Username:
+          username,
+
+        user2Uid:
+          request.fromUid,
+
+        user2Username:
+          request.fromUsername,
+
+        createdAt:
+          serverTimestamp()
+      }
+    );
+
+
+    // ---------------------------------------------
+    // Mark request accepted
+    // ---------------------------------------------
+
+    await updateDoc(
+      doc(
+        db,
+        "friendRequests",
+        requestId
+      ),
+      {
+        status:
+          "accepted",
+
+        respondedAt:
+          serverTimestamp()
+      }
+    );
+
+
+    toast(
+      `${request.fromUsername} is now your friend! ♡`
+    );
+
+    await showFriendRequests();
+
+  } catch (error) {
+
+    console.error(
+      "ACCEPT FRIEND REQUEST ERROR:",
+      error
+    );
+
+    showToast(
+      "Couldn't accept the friend request."
+    );
+  }
+}
+
+
+// -----------------------------------------------------
+// Decline request
+// -----------------------------------------------------
+
+async function declineFriendRequest(
+  requestId
+) {
+
+  if (!currentUser) {
+    return;
+  }
+
+  try {
+
+    await updateDoc(
+      doc(
+        db,
+        "friendRequests",
+        requestId
+      ),
+      {
+        status:
+          "declined",
+
+        respondedAt:
+          serverTimestamp()
+      }
+    );
+
+    showToast(
+      "Friend request declined."
+    );
+
+    await showFriendRequests();
+
+  } catch (error) {
+
+    console.error(
+      "DECLINE FRIEND REQUEST ERROR:",
+      error
+    );
+
+    showToast(
+      "Couldn't decline the request."
+    );
+  }
+}
+
+
+// -----------------------------------------------------
+// Friends list
+// -----------------------------------------------------
+
+async function showFriendsList() {
+
+  showFriendsPanel(
+    "friends"
+  );
+
+  const list =
+    $("friendsList");
+
+  const empty =
+    $("friendsEmpty");
+
+  if (!currentUser) {
+    return;
+  }
+
+  list.innerHTML = `
+    <div class="mini-empty">
+      Loading friends…
+    </div>
+  `;
+
+  try {
+
+    const friendsQuery =
+      query(
+        collection(
+          db,
+          "friendships"
+        ),
+        where(
+          "users",
+          "array-contains",
+          currentUser.uid
+        ),
+        orderBy(
+          "createdAt",
+          "desc"
+        )
+      );
+
+    const snapshot =
+      await getDocs(
+        friendsQuery
+      );
+
+    list.innerHTML = "";
+
+    if (snapshot.empty) {
+
+      empty.classList.remove(
+        "hidden"
+      );
+
+      return;
+    }
+
+    empty.classList.add(
+      "hidden"
+    );
+
+
+    snapshot.forEach(
+      friendDoc => {
+
+        const friend =
+          friendDoc.data();
+
+        const isUser1 =
+          friend.user1Uid ===
+          currentUser.uid;
+
+        const friendUsername =
+          isUser1
+            ? friend.user2Username
+            : friend.user1Username;
+
+
+        const item =
+          document.createElement(
+            "div"
+          );
+
+        item.className =
+          "friend-result";
+
+        item.innerHTML = `
+          <div class="friend-avatar">
+            ♡
+          </div>
+
+          <div class="friend-info">
+
+            <strong>
+              ${escapeHtml(
+                friendUsername
+              )}
+            </strong>
+
+            <small>
+              Your Between Us friend ♡
+            </small>
+
+          </div>
+        `;
+
+        list.appendChild(
+          item
+        );
+      }
+    );
+
+  } catch (error) {
+
+    console.error(
+      "LOAD FRIENDS ERROR:",
+      error
+    );
+
+    list.innerHTML = `
+      <div class="mini-empty">
+        Couldn't load your friends.
+      </div>
+    `;
+  }
+}
+
+
+// -----------------------------------------------------
+// Friends panel switching
+// -----------------------------------------------------
+
+function showFriendsPanel(
+  panel
+) {
+
+  $("findFriendsPanel")
+    .classList
+    .toggle(
+      "hidden",
+      panel !== "find"
+    );
+
+  $("friendRequestsPanel")
+    .classList
+    .toggle(
+      "hidden",
+      panel !== "requests"
+    );
+
+  $("friendsListPanel")
+    .classList
+    .toggle(
+      "hidden",
+      panel !== "friends"
+    );
+
+
+  $("findFriendsTab")
+    .classList
+    .toggle(
+      "active",
+      panel === "find"
+    );
+
+  $("friendRequestsTab")
+    .classList
+    .toggle(
+      "active",
+      panel === "requests"
+    );
+
+  $("friendsListTab")
+    .classList
+    .toggle(
+      "active",
+      panel === "friends"
+    );
+}
+
+
+// -----------------------------------------------------
+// Friends event listeners
+// -----------------------------------------------------
+
+$("friendSearchButton")
+  ?.addEventListener(
+    "click",
+    searchFriendByUsername
+  );
+
+
+$("friendSearchInput")
+  ?.addEventListener(
+    "keydown",
+    event => {
+
+      if (
+        event.key === "Enter"
+      ) {
+
+        event.preventDefault();
+
+        searchFriendByUsername();
+      }
+    }
+  );
+
+
+$("findFriendsTab")
+  ?.addEventListener(
+    "click",
+    () =>
+      showFriendsPanel(
+        "find"
+      )
+  );
+
+
+$("friendRequestsTab")
+  ?.addEventListener(
+    "click",
+    showFriendRequests
+  );
+
+
+$("friendsListTab")
+  ?.addEventListener(
+    "click",
+    showFriendsList
+  );
+
+
+/* =========================================================
    AUTH / START
 ========================================================= */
 
 async function boot() {
 
+  username ="";
+  
+const firestoreUsername =
+  await loadUsername();
+
+if (firestoreUsername) {
+
+  username =
+    firestoreUsername;
+
+  localStorage.setItem(
+    "betweenUsUsername",
+    username
+  );
+
+} else {
+
+  /*
+   * Firestore has no username for this UID.
+   * Remove any stale browser copy.
+   */
+  localStorage.removeItem(
+    "betweenUsUsername"
+  );
+
+  username = "";
+}
+
   try {
 
+    /*
+     * If Firebase already has a registered user,
+     * Firebase will restore that session.
+     *
+     * Otherwise this creates/restores an anonymous
+     * Firebase user so a new person can create an
+     * account while keeping the same UID/data.
+     */
     currentUser =
       await startAnonymousAuth();
 
@@ -417,35 +2556,152 @@ async function boot() {
       currentUser.uid
     );
 
+    console.log(
+      "IS ANONYMOUS:",
+      currentUser.isAnonymous
+    );
+
+
+    /* =====================================================
+       CHECK URL FIRST
+    ===================================================== */
+
     const gameId =
       getParam("game");
 
     const listId =
       getParam("list");
 
+
+    /*
+     * A shared game/list can still be opened directly.
+     *
+     * We don't force the visitor through the account
+     * screen before opening an existing shared link.
+     */
+
     if (gameId) {
 
-      await loadPlayerGame(gameId);
+      await loadPlayerGame(
+        gameId
+      );
 
       return;
     }
 
     if (listId) {
 
-      await loadPlayerList(listId);
+      await loadPlayerList(
+        listId
+      );
 
       return;
     }
 
-    showScreen("landingScreen");
 
-    await loadDashboard();
+    /* =====================================================
+       LOAD USERNAME FROM FIRESTORE
+    ===================================================== */
+
+    const firestoreUsername =
+      await loadUsername();
+
+    if (firestoreUsername) {
+
+      username =
+        firestoreUsername;
+
+      localStorage.setItem(
+        "betweenUsUsername",
+        username
+      );
+    }
+
+
+    updateUsernameDisplay();
+
+
+    /* =====================================================
+       REGISTERED ACCOUNT
+    ===================================================== */
+
+    if (
+      currentUser &&
+      !currentUser.isAnonymous
+    ) {
+
+      if (!username) {
+
+        /*
+         * This shouldn't normally happen, but if it does,
+         * let the user create their profile username.
+         */
+        showUsernameScreen(
+          "create",
+          true
+        );
+
+        return;
+      }
+
+      $("homeContent")
+        .classList
+        .remove("hidden");
+
+      showScreen(
+        "landingScreen"
+      );
+
+      await loadDashboard();
+
+      return;
+    }
+
+
+    /* =====================================================
+       ANONYMOUS ACCOUNT WITH EXISTING USERNAME
+    ===================================================== */
+
+    if (
+      currentUser &&
+      currentUser.isAnonymous &&
+      username
+    ) {
+
+      /*
+       * This is an older anonymous Between Us space.
+       *
+       * Give the user the choice to secure it with a
+       * password or continue anonymously.
+       */
+      showUsernameScreen(
+        "create",
+        true
+      );
+
+      return;
+    }
+
+
+    /* =====================================================
+       BRAND NEW USER
+    ===================================================== */
+
+    showUsernameScreen(
+      "create",
+      false
+    );
 
   } catch (error) {
 
-    console.error(error);
+    console.error(
+      "BOOT ERROR:",
+      error
+    );
 
-    showScreen("landingScreen");
+    showScreen(
+      "landingScreen"
+    );
 
     toast(
       "Something went wrong connecting to Firebase."
@@ -515,6 +2771,231 @@ $("createGroupButton")
     }
   );
 
+  
+/* =========================================================
+   QUESTIONS FROM FRIENDS
+========================================================= */
+
+async function loadIncomingFriendQuestions() {
+  const dashboard = $("dashboardContent");
+
+  if (!dashboard || !currentUser) return;
+
+  // Remove the old section before refreshing it.
+  dashboard.querySelector("#incomingFriendQuestions")?.remove();
+
+  try {
+    const questionsQuery = query(
+      collection(db, "friendQuestions"),
+      where("toUid", "==", currentUser.uid)
+    );
+
+    const snapshot = await getDocs(questionsQuery);
+
+    const questions = snapshot.docs
+      .map(d => ({
+        id: d.id,
+        ...d.data()
+      }))
+      .sort(
+        (a, b) =>
+          (b.createdAt?.seconds || 0) -
+          (a.createdAt?.seconds || 0)
+      );
+
+    const section = document.createElement("section");
+    section.id = "incomingFriendQuestions";
+    section.className = "friend-inbox";
+
+    section.innerHTML = `
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">A little something for you</p>
+          <h2>♡ Questions from Friends</h2>
+        </div>
+        <span class="friend-question-count">
+          ${questions.filter(q => q.status === "pending").length} new
+        </span>
+      </div>
+
+      <div class="friend-inbox-list">
+        ${
+          questions.length
+            ? questions.map(q => {
+                const answered = q.status === "answered";
+
+                const options = Array.isArray(q.options)
+                  ? q.options
+                  : [];
+
+                return `
+                  <article
+                    class="friend-question-card"
+                    data-question-id="${escapeHtml(q.id)}"
+                  >
+                    <p class="muted">
+                      From ${escapeHtml(q.fromUsername || "A friend")}
+                    </p>
+
+                    <h3>${escapeHtml(q.question || "")}</h3>
+
+                    ${
+                      answered
+                        ? `
+                          <p class="friend-answer-status">
+                            ✓ You answered this question
+                          </p>
+                          <p>
+                            Your answer: ${escapeHtml(q.answer || "")}
+                          </p>
+                        `
+                        : q.answerType === "options"
+                          ? `
+                            <div class="friend-answer-options">
+                              ${options.map((option, index) => `
+                                <label class="friend-answer-option">
+                                  <input
+                                    type="radio"
+                                    name="friend-answer-${escapeHtml(q.id)}"
+                                    value="${escapeHtml(option)}"
+                                  >
+                                  <span>${escapeHtml(option)}</span>
+                                </label>
+                              `).join("")}
+
+                              ${
+                                q.allowCustomAnswer
+                                  ? `
+                                    <label for="custom-${escapeHtml(q.id)}">
+                                      Or write your own answer
+                                    </label>
+                                    <textarea
+                                      id="custom-${escapeHtml(q.id)}"
+                                      class="text-input friend-custom-answer"
+                                      maxlength="2000"
+                                      placeholder="Your own answer..."
+                                    ></textarea>
+                                  `
+                                  : ""
+                              }
+                            </div>
+
+                            <button
+                              type="button"
+                              class="soft-button answer-friend-question"
+                            >
+                              Send answer ♡
+                            </button>
+                          `
+                          : `
+                            <textarea
+                              class="text-input friend-written-answer"
+                              maxlength="2000"
+                              placeholder="Write your answer..."
+                            ></textarea>
+
+                            <button
+                              type="button"
+                              class="soft-button answer-friend-question"
+                            >
+                              Send answer ♡
+                            </button>
+                          `
+                    }
+                  </article>
+                `;
+              }).join("")
+            : `
+              <div class="empty-state">
+                <span>💌</span>
+                <h3>No questions just yet</h3>
+                <p>Questions your friends send you will appear here.</p>
+              </div>
+            `
+        }
+      </div>
+    `;
+
+    dashboard.appendChild(section);
+
+    section
+      .querySelectorAll(".answer-friend-question")
+      .forEach(button => {
+        button.addEventListener("click", async () => {
+          const card = button.closest("[data-question-id]");
+          const questionId = card.dataset.questionId;
+
+          const question = questions.find(
+            q => q.id === questionId
+          );
+
+          if (!question || question.status !== "pending") {
+            return;
+          }
+
+          const customAnswer = card
+            .querySelector(".friend-custom-answer")
+            ?.value.trim() || "";
+
+          const selectedOption = card
+            .querySelector('input[type="radio"]:checked')
+            ?.value || "";
+
+          const writtenAnswer = card
+            .querySelector(".friend-written-answer")
+            ?.value.trim() || "";
+
+          const answer =
+            writtenAnswer ||
+            customAnswer ||
+            selectedOption;
+
+          if (!answer) {
+            toast("Write or choose an answer first.");
+            return;
+          }
+
+          button.disabled = true;
+          button.textContent = "Sending...";
+
+          try {
+            await updateDoc(
+              doc(db, "friendQuestions", questionId),
+              {
+                answer,
+                status: "answered",
+                answeredAt: serverTimestamp()
+              }
+            );
+
+            toast("Your answer was sent ♡");
+            await loadIncomingFriendQuestions();
+          } catch (error) {
+            console.error("ANSWER FRIEND QUESTION ERROR:", error);
+            toast("Couldn't send your answer.");
+            button.disabled = false;
+            button.textContent = "Send answer ♡";
+          }
+        });
+      });
+
+  } catch (error) {
+    console.error("LOAD INCOMING FRIEND QUESTIONS ERROR:", error);
+
+    const section = document.createElement("section");
+    section.id = "incomingFriendQuestions";
+    section.innerHTML = `
+      <div class="empty-state">
+        <span>🌧️</span>
+        <h3>Couldn't load friend questions</h3>
+        <p>Please refresh and try again.</p>
+      </div>
+    `;
+
+    dashboard.appendChild(section);
+  }
+}
+
 /* =========================================================
    DASHBOARD
 ========================================================= */
@@ -565,24 +3046,29 @@ async function loadDashboard() {
       dashboardGames
     );
 
-    /* ---------- LISTS ---------- */
 
-    const listsSnap =
-      await getDocs(
-        collection(db, "lists")
-      );
+/* ---------- LISTS ---------- */
 
-    dashboardLists =
-      listsSnap.docs
-        .map(d => ({
-          id: d.id,
-          ...d.data()
-        }))
-        .filter(
-          list =>
-            list.creatorId ===
-            currentUser.uid
-        );
+const listsSnap = await getDocs(
+  collection(db, "lists")
+);
+
+const allLists = listsSnap.docs.map(d => ({
+  id: d.id,
+  ...d.data()
+}));
+
+// Lists I created
+dashboardLists = allLists.filter(
+  list => list.creatorId === currentUser.uid
+);
+
+// Lists other people shared with me
+dashboardSharedLists = allLists.filter(
+  list =>
+    list.sharedWithUid === currentUser.uid &&
+    list.creatorId !== currentUser.uid
+);
 
     /* ---------- GROUPS ---------- */
 
@@ -617,6 +3103,12 @@ async function loadDashboard() {
         (a.createdAt?.seconds || 0)
     );
 
+    dashboardSharedLists.sort(
+  (a, b) =>
+    (b.createdAt?.seconds || 0) -
+    (a.createdAt?.seconds || 0)
+);
+
     dashboardGroups.sort(
       (a, b) =>
         (a.title || "")
@@ -625,9 +3117,12 @@ async function loadDashboard() {
           )
     );
 
-    renderDashboard();
+renderDashboard();
 
-    populateGroupSelect();
+populateGroupSelect();
+await populateFriendDropdowns();
+await loadIncomingFriendQuestions();
+await loadSentFriendQuestions();
 
   } catch (error) {
 
@@ -684,6 +3179,7 @@ async function renderDashboard() {
   if (
     !dashboardGames.length &&
     !dashboardLists.length &&
+    !dashboardSharedLists.length &&
     !dashboardGroups.length
   ) {
 
@@ -872,6 +3368,50 @@ async function renderDashboard() {
       </div>
     `;
   }
+
+  
+/* ---------- SHARED WITH ME ---------- */
+
+if (dashboardSharedLists.length) {
+  html += `
+    <div class="dashboard-section">
+      <div class="section-label">
+        ♡ SHARED WITH ME
+      </div>
+  `;
+
+  for (const list of dashboardSharedLists) {
+    html += `
+      <article class="dashboard-card compact">
+        <div class="dashboard-icon">☑️</div>
+
+        <div class="dashboard-main">
+          <h3>
+            ${escapeHtml(list.title || "Untitled list")}
+          </h3>
+
+          <p>
+            Shared by ${escapeHtml(list.creatorUsername || "a friend")}
+            · ${list.itemCount ?? 0} items
+            · ${escapeHtml(PERMISSIONS[list.permission] || PERMISSIONS.view)}
+          </p>
+        </div>
+
+        <div class="dashboard-actions">
+          <button
+            class="soft-button small"
+            data-action="open-list"
+            data-id="${list.id}"
+          >
+            Open
+          </button>
+        </div>
+      </article>
+    `;
+  }
+
+  html += `</div>`;
+}
 
   content.innerHTML = html;
 
@@ -1488,6 +4028,19 @@ function getQuestionDraft() {
       )
       .filter(Boolean);
 
+  const friendMode =
+    document
+      .querySelector(
+        'input[name="friendQuestionMode"]:checked'
+      )
+      ?.value ||
+    "game";
+
+  const friendUid =
+    $("questionFriendSelect")
+      ?.value ||
+    "";
+
   return {
 
     id:
@@ -1509,166 +4062,297 @@ function getQuestionDraft() {
       answerType === "options"
         ? $("allowCustomAnswer")
             .checked
-        : false
+        : false,
+
+    friendMode,
+
+    friendUid
   };
 }
 
-/* =========================================================
-   CLEAR QUESTION FORM
-========================================================= */
-
-function clearQuestionForm() {
-
-  editingQuestionId = null;
-
-  $("questionInput")
-    .value = "";
-
-  document
-    .querySelector(
-      'input[name="category"][value="very-light"]'
-    )
-    .checked = true;
-
-  document
-    .querySelector(
-      'input[name="answerType"][value="written"]'
-    )
-    .checked = true;
-
-  $("allowCustomAnswer")
-    .checked = false;
-
-  $("optionsList")
-    .innerHTML = "";
-
-  $("cancelEditQuestionButton")
-    .classList
-    .add("hidden");
-
-  renderOptionsEditor();
-}
 
 /* =========================================================
    SAVE QUESTION
    IMPORTANT:
    FIRST QUESTION CREATES GAME + LINK
+   - Normal question → save to game
+   - Friend question → save privately to friend
 ========================================================= */
 
-$("saveQuestionButton").addEventListener("click", async () => {
+/* =========================================================
+   SAVE QUESTION
+   - Normal question → save to game
+   - Friend question → save privately to friend
+========================================================= */
 
-  const draft = getQuestionDraft();
+$("saveQuestionButton").addEventListener(
+  "click",
+  async () => {
 
-  if (!draft.question) {
-    return toast("Write the question first.");
+    const draft =
+      getQuestionDraft();
+
+    if (!draft.question) {
+      return toast(
+        "Write the question first."
+      );
+    }
+
+    if (
+      draft.answerType === "options" &&
+      draft.options.length < 2
+    ) {
+      return toast(
+        "Add at least two answer choices."
+      );
+    }
+
+
+    /* =====================================================
+       FRIEND QUESTION
+    ===================================================== */
+
+
+if (draft.friendMode === "friend") {
+  if (!draft.friendUid) {
+    return toast("Choose a friend first.");
   }
 
-  if (
-    draft.answerType === "options" &&
-    draft.options.length < 2
-  ) {
-    return toast("Add at least two answer choices.");
-  }
+  const selectedFriendOption =
+    $("questionFriendSelect").selectedOptions[0];
+
+  const friendUsername =
+    selectedFriendOption?.textContent.trim() || "";
+
+  console.log("FRIEND QUESTION DEBUG:", {
+    uid: currentUser.uid,
+    toUid: draft.friendUid,
+    question: draft.question,
+    category: draft.category,
+    answerType: draft.answerType
+  });
 
   try {
+    console.log("STEP 1: Creating friend question...");
 
-    // Add or update the question
-    const index = creatorQuestions.findIndex(
-      q => q.id === draft.id
+    const questionRef = await addDoc(
+      collection(db, "friendQuestions"),
+      {
+        questionId: draft.id,
+        question: draft.question,
+        category: draft.category,
+        answerType: draft.answerType,
+        options: draft.options,
+        allowCustomAnswer: draft.allowCustomAnswer,
+        fromUid: currentUser.uid,
+        fromUsername: username || "",
+        toUid: draft.friendUid,
+        toUsername: friendUsername,
+        status: "pending",
+        createdAt: serverTimestamp()
+      }
     );
 
-    if (index >= 0) {
-      creatorQuestions[index] = draft;
-    } else {
-      creatorQuestions.push(draft);
-    }
+    console.log(
+      "STEP 2: Friend question created:",
+      questionRef.id
+    );
 
-    renderQuestionList();
-
-    const title =
-      $("gameTitle").value.trim() ||
-      "Between Us Questions";
-
-
-    // ==========================================
-    // CREATE GAME AFTER FIRST QUESTION
-    // ==========================================
-
-    if (!currentGameId) {
-
-      const ref = await addDoc(
-        collection(db, "games"),
-        {
-          creatorId: currentUser.uid,
-          title,
-          questions: creatorQuestions,
-          active: true,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        }
-      );
-
-      currentGameId = ref.id;
-
-      toast("Your game is ready ✨");
-
-    } else {
-
-      // ==========================================
-      // UPDATE EXISTING GAME
-      // ==========================================
-
-      await updateDoc(
-        doc(db, "games", currentGameId),
-        {
-          title,
-          questions: creatorQuestions,
-          active: true,
-          updatedAt: serverTimestamp()
-        }
-      );
-
-      toast("Question saved ✨");
-    }
-
-
-    // ==========================================
-    // SHOW LINK IMMEDIATELY
-    // ==========================================
-
-    $("gameLink").value =
-      makeGameLink(currentGameId);
-
-    $("gameCreatedArea")
-      .classList
-      .remove("hidden");
-
-
-    // ==========================================
-    // REFRESH DASHBOARD
-    // ==========================================
-
+    toast("Question sent to your friend ♡");
+    clearQuestionForm();
     await loadDashboard();
 
-
-    // ==========================================
-    // CLEAR QUESTION FORM
-    // ==========================================
-
-    clearQuestionForm();
-
-  } catch (e) {
-
+  } catch (error) {
     console.error(
-      "SAVE QUESTION ERROR:",
-      e
+      "FRIEND QUESTION ERROR:",
+      error.code,
+      error.message
     );
 
-    toast(
-      "Couldn't save the question."
-    );
+    toast("Couldn't send the question.");
   }
-});
+
+  return;
+}
+    
+    
+
+
+
+    /* =====================================================
+       NORMAL GAME QUESTION
+    ===================================================== */
+
+    try {
+
+      // Add or update the question
+      const index =
+        creatorQuestions.findIndex(
+          q =>
+            q.id === draft.id
+        );
+
+
+      if (index >= 0) {
+
+        creatorQuestions[index] =
+          draft;
+
+      } else {
+
+        creatorQuestions.push(
+          draft
+        );
+
+      }
+
+
+      // Remove friend-only fields
+      // before saving to the game
+      const gameQuestions =
+        creatorQuestions.map(q => {
+
+          const {
+            friendMode,
+            friendUid,
+            ...gameQuestion
+          } = q;
+
+          return gameQuestion;
+
+        });
+
+
+      renderQuestionList();
+
+
+      const title =
+        $("gameTitle")
+          .value
+          .trim() ||
+        "Between Us Questions";
+
+
+      /* ===================================================
+         CREATE GAME AFTER FIRST QUESTION
+      =================================================== */
+
+      if (!currentGameId) {
+
+        const ref =
+          await addDoc(
+            collection(
+              db,
+              "games"
+            ),
+            {
+
+              creatorId:
+                currentUser.uid,
+
+              title,
+
+              questions:
+                gameQuestions,
+
+              active:
+                true,
+
+              createdAt:
+                serverTimestamp(),
+
+              updatedAt:
+                serverTimestamp()
+
+            }
+          );
+
+
+        currentGameId =
+          ref.id;
+
+
+        toast(
+          "Your game is ready ✨"
+        );
+
+      } else {
+
+        /* ================================================
+           UPDATE EXISTING GAME
+        ================================================ */
+
+        await updateDoc(
+          doc(
+            db,
+            "games",
+            currentGameId
+          ),
+          {
+
+            title,
+
+            questions:
+              gameQuestions,
+
+            active:
+              true,
+
+            updatedAt:
+              serverTimestamp()
+
+          }
+        );
+
+
+        toast(
+          "Question saved ✨"
+        );
+      }
+
+
+      /* ===================================================
+         SHOW LINK IMMEDIATELY
+      =================================================== */
+
+      $("gameLink").value =
+        makeGameLink(
+          currentGameId
+        );
+
+
+      $("gameCreatedArea")
+        .classList
+        .remove("hidden");
+
+
+      /* ===================================================
+         REFRESH DASHBOARD
+      =================================================== */
+
+      await loadDashboard();
+
+
+      /* ===================================================
+         CLEAR QUESTION FORM
+      =================================================== */
+
+      clearQuestionForm();
+
+    } catch (e) {
+
+      console.error(
+        "SAVE QUESTION ERROR:",
+        e
+      );
+
+      toast(
+        "Couldn't save the question."
+      );
+    }
+
+  }
+);
 /* =========================================================
    CANCEL EDIT
 ========================================================= */
@@ -2260,6 +4944,223 @@ function renderPlayerQuestion() {
         : "Save answer →";
 }
 
+
+
+async function loadQuestionFriends() {
+  const select = $("questionFriendSelect");
+
+  if (!select || !currentUser) return;
+
+  select.innerHTML = `
+    <option value="">Loading friends...</option>
+  `;
+
+  try {
+    const friendsQuery = query(
+      collection(db, "friendships"),
+      where("users", "array-contains", currentUser.uid)
+    );
+
+    const snapshot = await getDocs(friendsQuery);
+
+    console.log(
+      "QUESTION FRIENDS: documents found:",
+      snapshot.size
+    );
+
+    select.innerHTML = `
+      <option value="">Choose a friend...</option>
+    `;
+
+    snapshot.forEach(friendshipDoc => {
+      const data = friendshipDoc.data();
+
+      let friendUid = "";
+      let friendUsername = "";
+
+      if (data.user1Uid === currentUser.uid) {
+        friendUid = data.user2Uid || "";
+        friendUsername = data.user2Username || "";
+      } else if (data.user2Uid === currentUser.uid) {
+        friendUid = data.user1Uid || "";
+        friendUsername = data.user1Username || "";
+      } else {
+        friendUid = (data.users || []).find(
+          uid => uid !== currentUser.uid
+        ) || "";
+      }
+
+      if (!friendUid) return;
+
+      const option = document.createElement("option");
+      option.value = friendUid;
+      option.textContent = friendUsername || "Friend";
+
+      select.appendChild(option);
+    });
+
+    if (snapshot.empty) {
+      select.innerHTML = `
+        <option value="">No accepted friends found</option>
+      `;
+    }
+
+  } catch (error) {
+    console.error("LOAD QUESTION FRIENDS ERROR:", error);
+
+    select.innerHTML = `
+      <option value="">Couldn't load friends</option>
+    `;
+
+    toast("Couldn't load your friends.");
+  }
+}
+
+
+
+/* =========================================================
+   POPULATE ALL FRIEND DROPDOWNS
+========================================================= */
+
+async function populateFriendDropdowns() {
+  if (!currentUser) return;
+
+  const selectIds = [
+    "questionFriendSelect",
+    "listFriendSelect",
+    "manageListFriendSelect"
+  ];
+
+  const selects = selectIds
+    .map(id => $(id))
+    .filter(Boolean);
+
+  if (!selects.length) return;
+
+  selects.forEach(select => {
+    select.innerHTML = `<option value="">Loading friends...</option>`;
+  });
+
+  try {
+    const friendsQuery = query(
+      collection(db, "friendships"),
+      where("users", "array-contains", currentUser.uid)
+    );
+
+    const snapshot = await getDocs(friendsQuery);
+    const friends = [];
+
+    snapshot.forEach(friendshipDoc => {
+      const data = friendshipDoc.data();
+
+      let friendUid = "";
+      let friendUsername = "";
+
+      if (data.user1Uid === currentUser.uid) {
+        friendUid = data.user2Uid || "";
+        friendUsername = data.user2Username || "";
+      } else if (data.user2Uid === currentUser.uid) {
+        friendUid = data.user1Uid || "";
+        friendUsername = data.user1Username || "";
+      } else {
+        friendUid =
+          (data.users || []).find(
+            uid => uid !== currentUser.uid
+          ) || "";
+      }
+
+      if (friendUid) {
+        friends.push({
+          uid: friendUid,
+          username: friendUsername || "Friend"
+        });
+      }
+    });
+
+    friends.sort((a, b) =>
+      a.username.localeCompare(b.username)
+    );
+
+    selects.forEach(select => {
+      // Preserve the dropdown's original first option.
+      const firstOption = select.options[0];
+      const placeholderText =
+        firstOption?.textContent || "Choose a friend...";
+
+      select.innerHTML = "";
+
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = placeholderText;
+      select.appendChild(placeholder);
+
+      friends.forEach(friend => {
+        const option = document.createElement("option");
+        option.value = friend.uid;
+        option.textContent = friend.username;
+        select.appendChild(option);
+      });
+
+      if (friends.length === 0) {
+        placeholder.textContent = "No accepted friends found";
+      }
+    });
+
+    console.log(
+      "FRIEND DROPDOWNS POPULATED:",
+      friends.length,
+      friends
+    );
+
+  } catch (error) {
+    console.error("POPULATE FRIEND DROPDOWNS ERROR:", error);
+
+    selects.forEach(select => {
+      select.innerHTML =
+        `<option value="">Couldn't load friends</option>`;
+    });
+
+    toast("Couldn't load your friends.");
+  }
+}
+
+
+/* =========================================================
+   FRIEND QUESTION TOGGLE
+========================================================= */
+
+document
+  .querySelectorAll('input[name="friendQuestionMode"]')
+  .forEach(radio => {
+
+    radio.addEventListener("change", async () => {
+
+      const selected = document.querySelector(
+        'input[name="friendQuestionMode"]:checked'
+      )?.value;
+
+      const area = $("friendQuestionSelectArea");
+
+      if (!area) return;
+
+      if (selected === "friend") {
+
+        area.classList.remove("hidden");
+
+        await populateFriendDropdowns();
+
+      } else {
+
+        area.classList.add("hidden");
+
+        $("questionFriendSelect").value = "";
+
+      }
+
+    });
+
+  });
+
 /* =========================================================
    SAVE PLAYER RESPONSE
 ========================================================= */
@@ -2691,6 +5592,70 @@ function renderResponse(r) {
 }
 
 /* =========================================================
+   LIGHT / DARK MODE
+========================================================= */
+
+function applySavedTheme() {
+
+  const savedTheme =
+    localStorage.getItem("betweenUsTheme");
+
+  if (savedTheme === "dark") {
+    document.body.classList.add("dark-mode");
+  } else {
+    document.body.classList.remove("dark-mode");
+  }
+
+  updateThemeToggle();
+}
+
+
+function updateThemeToggle() {
+
+  const toggle =
+    $("themeToggle");
+
+  if (!toggle) return;
+
+  const isDark =
+    document.body.classList.contains("dark-mode");
+
+  toggle.setAttribute(
+    "aria-pressed",
+    String(isDark)
+  );
+}
+
+
+const themeToggle =
+  $("themeToggle");
+
+if (themeToggle) {
+
+  themeToggle.addEventListener(
+    "click",
+    () => {
+
+      const isDark =
+        document.body.classList.toggle(
+          "dark-mode"
+        );
+
+      localStorage.setItem(
+        "betweenUsTheme",
+        isDark ? "dark" : "light"
+      );
+
+      updateThemeToggle();
+    }
+  );
+}
+
+
+/* Apply theme as soon as the script loads */
+applySavedTheme();
+
+/* =========================================================
    LIST CREATOR
 ========================================================= */
 
@@ -2743,6 +5708,98 @@ function resetListCreator() {
   $("listCreatedArea")
     .classList
     .add("hidden");
+}
+
+/* =========================================================
+   QUESTIONS I SENT TO FRIENDS
+========================================================= */
+
+async function loadSentFriendQuestions() {
+  const dashboard = $("dashboardContent");
+
+  if (!dashboard || !currentUser) return;
+
+  dashboard.querySelector("#sentFriendQuestions")?.remove();
+
+  try {
+    const sentQuery = query(
+      collection(db, "friendQuestions"),
+      where("fromUid", "==", currentUser.uid)
+    );
+
+    const snapshot = await getDocs(sentQuery);
+
+    const questions = snapshot.docs
+      .map(d => ({
+        id: d.id,
+        ...d.data()
+      }))
+      .sort(
+        (a, b) =>
+          (b.createdAt?.seconds || 0) -
+          (a.createdAt?.seconds || 0)
+      );
+
+    const section = document.createElement("section");
+    section.id = "sentFriendQuestions";
+    section.className = "friend-inbox";
+
+    section.innerHTML = `
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Your little messages</p>
+          <h2>♡ Questions I've Sent</h2>
+        </div>
+      </div>
+
+      <div class="friend-inbox-list">
+        ${
+          questions.length
+            ? questions.map(q => `
+                <article class="friend-question-card">
+                  <p class="muted">
+                    To ${escapeHtml(q.toUsername || "Your friend")}
+                  </p>
+
+                  <h3>${escapeHtml(q.question || "")}</h3>
+
+                  ${
+                    q.status === "answered"
+                      ? `
+                        <p class="friend-answer-status">
+                          ✓ Your friend answered
+                        </p>
+                        <p>
+                          <strong>Their response:</strong>
+                          ${escapeHtml(q.answer || "")}
+                        </p>
+                      `
+                      : `
+                        <p class="muted">
+                          💌 Waiting for their answer...
+                        </p>
+                      `
+                  }
+                </article>
+              `).join("")
+            : `
+              <div class="empty-state">
+                <span>💌</span>
+                <h3>No questions sent yet</h3>
+                <p>Questions you send to friends will appear here.</p>
+              </div>
+            `
+        }
+      </div>
+    `;
+
+    dashboard.appendChild(section);
+
+  } catch (error) {
+    console.error("LOAD SENT FRIEND QUESTIONS ERROR:", error);
+
+    toast("Couldn't load your sent questions.");
+  }
 }
 
 /* =========================================================
@@ -2910,138 +5967,91 @@ function makeListLink(id) {
   return url.toString();
 }
 
+
 /* =========================================================
    CREATE LIST
 ========================================================= */
 
-$("createListSaveButton")
-  .addEventListener(
-    "click",
-    async () => {
+$("createListSaveButton").addEventListener("click", async () => {
+  if (!currentUser) {
+    toast("Please sign in first.");
+    return;
+  }
 
-      const title =
-        $("listTitle")
-          .value
-          .trim() ||
-        "Our List";
+  const title =
+    $("listTitle").value.trim() || "Our List";
 
-      const permission =
-        document
-          .querySelector(
-            'input[name="permission"]:checked'
-          )
-          ?.value ||
-        "view";
+  const permission =
+    document.querySelector('input[name="permission"]:checked')
+      ?.value || "view";
 
-      const groupId =
-        $("listGroupSelect")
-          .value ||
-        null;
+  const groupId =
+    $("listGroupSelect").value || null;
 
-      const items =
-        $("startWithItems")
-          .checked
+  // Get the selected friend, if one was chosen.
+  const friendSelect = $("listFriendSelect");
+  const friendUid = friendSelect?.value || null;
 
-          ? [
-              ...document
-                .querySelectorAll(
-                  ".starter-item-value"
-                )
-            ]
-              .map(
-                x =>
-                  x.value.trim()
-              )
-              .filter(Boolean)
+  const friendUsername = friendUid
+    ? friendSelect.selectedOptions[0]?.textContent.trim() || ""
+    : "";
 
-          : [];
+  const items = $("startWithItems").checked
+    ? [...document.querySelectorAll(".starter-item-value")]
+        .map(input => input.value.trim())
+        .filter(Boolean)
+    : [];
 
-      try {
+  try {
+    const ref = await addDoc(collection(db, "lists"), {
+      creatorId: currentUser.uid,
+      creatorUsername: username || "",
+      title,
+      groupId,
+      permission,
 
-        const ref =
-          await addDoc(
-            collection(
-              db,
-              "lists"
-            ),
-            {
-              creatorId:
-                currentUser.uid,
+      // Sharing information
+      sharedWithUid: friendUid,
+      sharedWithUsername: friendUsername,
+      sharedAt: friendUid ? serverTimestamp() : null,
 
-              title,
+      itemCount: items.length,
+      active: true,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
 
-              groupId,
+    currentListId = ref.id;
 
-              permission,
-
-              itemCount:
-                items.length,
-
-              active: true,
-
-              createdAt:
-                serverTimestamp(),
-
-              updatedAt:
-                serverTimestamp()
-            }
-          );
-
-        currentListId =
-          ref.id;
-
-        for (
-          const text of items
-        ) {
-
-          await addDoc(
-            collection(
-              db,
-              "lists",
-              currentListId,
-              "items"
-            ),
-            {
-              text,
-
-              checked:
-                false,
-
-              createdAt:
-                serverTimestamp(),
-
-              updatedAt:
-                serverTimestamp()
-            }
-          );
+    for (const text of items) {
+      await addDoc(
+        collection(db, "lists", currentListId, "items"),
+        {
+          text,
+          checked: false,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
         }
-
-        $("listLink")
-          .value =
-            makeListLink(
-              currentListId
-            );
-
-        $("listCreatedArea")
-          .classList
-          .remove("hidden");
-
-        toast(
-          "List created ✨"
-        );
-
-        await loadDashboard();
-
-      } catch (e) {
-
-        console.error(e);
-
-        toast(
-          "Couldn't create the list."
-        );
-      }
+      );
     }
-  );
+
+    $("listLink").value = makeListLink(currentListId);
+
+    $("listCreatedArea").classList.remove("hidden");
+
+    toast(
+      friendUid
+        ? `List created and shared with ${friendUsername} ✨`
+        : "List created ✨"
+    );
+
+    await loadDashboard();
+
+  } catch (e) {
+    console.error("CREATE LIST ERROR:", e);
+    toast("Couldn't create the list.");
+  }
+});
 
 /* =========================================================
    LIST BUTTONS
@@ -3164,6 +6174,191 @@ async function refreshPlayerListItems() {
       (a.createdAt?.seconds || 0) -
       (b.createdAt?.seconds || 0)
   );
+}
+
+/* =========================================================
+   CLEAR QUESTION FORM
+========================================================= */
+
+function clearQuestionForm() {
+
+  editingQuestionId = null;
+
+
+  $("questionInput")
+    .value = "";
+
+
+  document
+    .querySelector(
+      'input[name="category"][value="very-light"]'
+    )
+    .checked = true;
+
+
+  document
+    .querySelector(
+      'input[name="answerType"][value="written"]'
+    )
+    .checked = true;
+
+
+  $("allowCustomAnswer")
+    .checked = false;
+
+
+  $("optionsList")
+    .innerHTML = "";
+
+
+  $("cancelEditQuestionButton")
+    .classList
+    .add("hidden");
+
+
+
+/* =========================================================
+   LOAD ACCEPTED FRIENDS INTO QUESTION SELECT
+========================================================= */
+
+async function loadQuestionFriends() {
+
+  const select = $("questionFriendSelect");
+
+  if (!select || !currentUser) {
+    return;
+  }
+
+  select.innerHTML = `
+    <option value="">Loading friends...</option>
+  `;
+
+  try {
+
+    const friendsQuery = query(
+      collection(db, "friendships"),
+      where("users", "array-contains", currentUser.uid)
+    );
+
+    const snapshot = await getDocs(friendsQuery);
+
+    console.log(
+      "QUESTION FRIENDS: friendship documents found:",
+      snapshot.size
+    );
+
+    select.innerHTML = `
+      <option value="">Choose a friend...</option>
+    `;
+
+    snapshot.forEach(friendshipDoc => {
+
+      const data = friendshipDoc.data();
+
+      let friendUid = "";
+      let friendUsername = "";
+
+      if (data.user1Uid === currentUser.uid) {
+
+        friendUid = data.user2Uid || "";
+        friendUsername = data.user2Username || "";
+
+      } else if (data.user2Uid === currentUser.uid) {
+
+        friendUid = data.user1Uid || "";
+        friendUsername = data.user1Username || "";
+
+      } else {
+
+        // Fallback if the document only has a users array.
+        const otherUid = (data.users || []).find(
+          uid => uid !== currentUser.uid
+        );
+
+        friendUid = otherUid || "";
+
+      }
+
+      if (!friendUid) {
+        console.warn(
+          "Friendship has no identifiable friend:",
+          friendshipDoc.id,
+          data
+        );
+        return;
+      }
+
+      const option = document.createElement("option");
+
+      option.value = friendUid;
+      option.textContent = friendUsername || "Friend";
+
+      select.appendChild(option);
+
+      console.log(
+        "QUESTION FRIEND ADDED:",
+        friendUsername || "(username missing)",
+        friendUid
+      );
+
+    });
+
+    if (snapshot.empty) {
+      select.innerHTML = `
+        <option value="">No accepted friends found</option>
+      `;
+    }
+
+  } catch (error) {
+
+    console.error(
+      "LOAD QUESTION FRIENDS ERROR:",
+      error
+    );
+
+    select.innerHTML = `
+      <option value="">Couldn't load friends</option>
+    `;
+
+    toast("Couldn't load your friends.");
+
+  }
+}
+
+  /* =====================================================
+     RESET FRIEND QUESTION
+  ===================================================== */
+
+  const gameMode =
+    document.querySelector(
+      'input[name="friendQuestionMode"][value="game"]'
+    );
+
+  if (gameMode) {
+    gameMode.checked = true;
+  }
+
+
+  const friendSelect =
+    $("questionFriendSelect");
+
+  if (friendSelect) {
+    friendSelect.value = "";
+  }
+
+
+  const friendSelectArea =
+    $("friendQuestionSelectArea");
+
+  if (friendSelectArea) {
+    friendSelectArea
+      .classList
+      .add("hidden");
+  }
+
+
+  renderOptionsEditor();
+
 }
 
 /* =========================================================
