@@ -30,7 +30,19 @@ const AI_WORKER_URL =
 const AUTH_WORKER_URL =
 "https://between-us-auth.newoshadow21.workers.dev";
 
-// import { logout } from "./firebase.js";
+
+async function recoverAnonymousSession() {
+  // Clear the stale Firebase session.
+  await logout();
+
+  // Create a new anonymous Firebase session.
+  const user = await startAnonymousAuth();
+
+  // Keep the app's user reference synchronized.
+  currentUser = user;
+
+  return user;
+}
 
 
 /* =========================================================
@@ -921,111 +933,192 @@ async function createAccount() {
       "Creating account ♡";
   }
 
+  // try {
+
+  //   /*
+  //    * Get a fresh Firebase ID token proving
+  //    * that this anonymous user owns the UID.
+  //    */
+  //   const idToken =
+  //     await getCurrentIdToken();
+
+  //   const response =
+  //     await fetch(
+  //       `${AUTH_WORKER_URL}/create-account`,
+  //       {
+  //         method: "POST",
+
+  //         headers: {
+  //           "Content-Type":
+  //             "application/json"
+  //         },
+
+  //         body: JSON.stringify({
+  //           username:
+  //             newUsername,
+
+  //           password,
+
+  //           idToken
+  //         })
+  //       }
+  //     );
+
+  //   const data =
+  //     await response.json();
+
+  //   if (!response.ok) {
+
+  //     throw new Error(
+  //       data.error ||
+  //       "Couldn't create the account."
+  //     );
+  //   }
+
+  //   if (!data.token) {
+
+  //     throw new Error(
+  //       "The authentication server did not return a token."
+  //     );
+  //   }
+
+  //   /*
+  //    * IMPORTANT:
+  //    *
+  //    * The Worker uses the EXISTING anonymous UID.
+  //    *
+  //    * Signing in with this custom token therefore
+  //    * keeps all existing games/lists attached to
+  //    * the same Firebase UID.
+  //    */
+  //   currentUser =
+  //     await signInWithWorkerToken(
+  //       data.token
+  //     );
+
+  //   username =
+  //     data.username ||
+  //     newUsername;
+
+  //   localStorage.setItem(
+  //     "betweenUsUsername",
+  //     username
+  //   );
+
+  //   /*
+  //    * Clear account fields.
+  //    */
+  //   usernameInput.value = "";
+  //   passwordInput.value = "";
+  //   confirmInput.value = "";
+
+  //   updateUsernameDisplay();
+
+  //   $("homeContent")
+  //     .classList
+  //     .remove("hidden");
+
+  //   showScreen(
+  //     "landingScreen"
+  //   );
+
+  //   await loadDashboard();
+
+  //   toast(
+  //     "Your Between Us account is secured ♡"
+  //   );
+
+  // } catch (error) {
+
   try {
 
-    /*
-     * Get a fresh Firebase ID token proving
-     * that this anonymous user owns the UID.
-     */
-    const idToken =
-      await getCurrentIdToken();
+    let response;
+    let data;
 
-    const response =
-      await fetch(
+    // Attempt account creation at most twice.
+    for (let attempt = 0; attempt < 2; attempt++) {
+
+      if (!currentUser || !currentUser.isAnonymous) {
+        throw new Error(
+          "Your anonymous session is unavailable. Please continue anonymously and try again."
+        );
+      }
+
+      const idToken = await getCurrentIdToken();
+
+      response = await fetch(
         `${AUTH_WORKER_URL}/create-account`,
         {
           method: "POST",
-
           headers: {
-            "Content-Type":
-              "application/json"
+            "Content-Type": "application/json"
           },
-
           body: JSON.stringify({
-            username:
-              newUsername,
-
+            username: newUsername,
             password,
-
             idToken
           })
         }
       );
 
-    const data =
-      await response.json();
+      data = await response.json();
+
+      const invalidSession =
+        response.status === 401 &&
+        data.error === "Your current Firebase session is invalid.";
+
+      // Retry only for the specific invalid-session error.
+      if (!invalidSession || attempt === 1) {
+        break;
+      }
+
+      // Sign out the stale user and start a fresh anonymous session.
+      await logout();
+      currentUser = await startAnonymousAuth();
+    }
 
     if (!response.ok) {
-
       throw new Error(
-        data.error ||
-        "Couldn't create the account."
+        data.error || "Couldn't create the account."
       );
     }
 
     if (!data.token) {
-
       throw new Error(
         "The authentication server did not return a token."
       );
     }
 
     /*
-     * IMPORTANT:
-     *
-     * The Worker uses the EXISTING anonymous UID.
-     *
-     * Signing in with this custom token therefore
-     * keeps all existing games/lists attached to
-     * the same Firebase UID.
+     * Sign in with the Worker token.
+     * This uses the UID returned by the Worker.
      */
-    currentUser =
-      await signInWithWorkerToken(
-        data.token
-      );
+    currentUser = await signInWithWorkerToken(data.token);
 
-    username =
-      data.username ||
-      newUsername;
+    username = data.username || newUsername;
 
-    localStorage.setItem(
-      "betweenUsUsername",
-      username
-    );
+    localStorage.setItem("betweenUsUsername", username);
 
-    /*
-     * Clear account fields.
-     */
     usernameInput.value = "";
     passwordInput.value = "";
     confirmInput.value = "";
 
     updateUsernameDisplay();
 
-    $("homeContent")
-      .classList
-      .remove("hidden");
+    $("homeContent").classList.remove("hidden");
 
-    showScreen(
-      "landingScreen"
-    );
+    showScreen("landingScreen");
 
     await loadDashboard();
 
-    toast(
-      "Your Between Us account is secured ♡"
-    );
+    toast("Your Between Us account is secured ♡");
 
   } catch (error) {
 
-    console.error(
-      "CREATE ACCOUNT ERROR:",
-      error
-    );
+    console.error("CREATE ACCOUNT ERROR:", error);
 
     showAccountError(
-      error.message ||
-      "Couldn't create your account."
+      error.message || "Couldn't create your account."
     );
 
   } finally {
@@ -7159,6 +7252,34 @@ if (footerYear) {
   footerYear.textContent = new Date().getFullYear();
 }
 
+
+
+/* =========================================================
+   LOG OUT
+========================================================= */
+$("logoutButton")?.addEventListener("click", async () => {
+  try {
+    await logout();
+
+    currentUser = null;
+    username = "";
+
+    showScreen("landingScreen");
+
+    // Hide the logout button
+    $("logoutButton")?.classList.add("hidden");
+
+    toast("You have been logged out. ♡");
+  } catch (error) {
+    console.error("LOGOUT ERROR:", error);
+    toast("Couldn't log out. Please try again.");
+  }
+});
+
+export {
+  
+  
+}
 /* =========================================================
    START APP
 ========================================================= */
