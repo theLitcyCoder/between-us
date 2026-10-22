@@ -1,12 +1,16 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 
+
 import {
   getAuth,
+  setPersistence,
+  browserLocalPersistence,
   signInAnonymously,
   signInWithCustomToken,
   signOut,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+
 
 import {
   getFirestore
@@ -25,7 +29,14 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
+
 const auth = getAuth(app);
+
+// Explicitly persist authentication across page refreshes.
+const authPersistenceReady = setPersistence(
+  auth,
+  browserLocalPersistence
+);
 
 const db = getFirestore(app);
 
@@ -82,6 +93,8 @@ const db = getFirestore(app);
 
 
 async function startAnonymousAuth() {
+  await authPersistenceReady;
+  
   // Wait until Firebase finishes restoring its saved session.
   const user = await new Promise((resolve, reject) => {
     const unsubscribe = onAuthStateChanged(

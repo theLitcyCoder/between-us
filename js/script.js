@@ -1073,8 +1073,8 @@ async function createAccount() {
       }
 
       // Sign out the stale user and start a fresh anonymous session.
-      await logout();
-      currentUser = await startAnonymousAuth();
+      // await logout();
+      // currentUser = await startAnonymousAuth();
     }
 
     if (!response.ok) {
