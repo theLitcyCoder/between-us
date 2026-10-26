@@ -231,7 +231,7 @@ let dashboardSharedLists = [];
 let dashboardGames = [];
 let dashboardLists = [];
 let dashboardGroups = [];
-
+let dashboardFriendQuestions = [];
 
 /* =========================================================
    CATEGORIES
@@ -2802,1202 +2802,6 @@ if (firestoreUsername) {
   }
 }
 
-/* =========================================================
-   NAVIGATION BUTTONS
-========================================================= */
-
-$("homeButton")
-  .addEventListener("click", () => {
-
-    setParam("game", null);
-    setParam("list", null);
-
-    showScreen("landingScreen");
-
-    loadDashboard();
-  });
-
-$("backButton")
-  .addEventListener("click", () => {
-
-    setParam("game", null);
-    setParam("list", null);
-
-    showScreen("landingScreen");
-
-    loadDashboard();
-  });
-
-$("finishHomeButton")
-  .addEventListener("click", () => {
-
-    setParam("game", null);
-    setParam("list", null);
-
-    showScreen("landingScreen");
-
-    loadDashboard();
-  });
-
-$("createQuestionsButton")
-  .addEventListener(
-    "click",
-    startQuestionCreator
-  );
-
-$("createListButton")
-  .addEventListener(
-    "click",
-    startListCreator
-  );
-
-$("createGroupButton")
-  .addEventListener(
-    "click",
-    () => {
-
-      $("groupTitle").value = "";
-
-      showScreen(
-        "groupCreatorScreen"
-      );
-    }
-  );
-
-  
-/* =========================================================
-   QUESTIONS FROM FRIENDS
-========================================================= */
-
-async function loadIncomingFriendQuestions() {
-  const dashboard = $("dashboardContent");
-
-  if (!dashboard || !currentUser) return;
-
-  // Remove the old section before refreshing it.
-  dashboard.querySelector("#incomingFriendQuestions")?.remove();
-
-  try {
-    const questionsQuery = query(
-      collection(db, "friendQuestions"),
-      where("toUid", "==", currentUser.uid)
-    );
-
-    const snapshot = await getDocs(questionsQuery);
-
-    const questions = snapshot.docs
-      .map(d => ({
-        id: d.id,
-        ...d.data()
-      }))
-      .sort(
-        (a, b) =>
-          (b.createdAt?.seconds || 0) -
-          (a.createdAt?.seconds || 0)
-      );
-
-    const section = document.createElement("section");
-    section.id = "incomingFriendQuestions";
-    section.className = "friend-inbox";
-
-    section.innerHTML = `
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">A little something for you</p>
-          <h2>♡ Questions from Friends</h2>
-        </div>
-        <span class="friend-question-count">
-          ${questions.filter(q => q.status === "pending").length} new
-        </span>
-      </div>
-
-      <div class="friend-inbox-list">
-        ${
-          questions.length
-            ? questions.map(q => {
-                const answered = q.status === "answered";
-
-                const options = Array.isArray(q.options)
-                  ? q.options
-                  : [];
-
-                return `
-                  <article
-                    class="friend-question-card"
-                    data-question-id="${escapeHtml(q.id)}"
-                  >
-                    <p class="muted">
-                      From ${escapeHtml(q.fromUsername || "A friend")}
-                    </p>
-
-                    <h3>${escapeHtml(q.question || "")}</h3>
-
-                    ${
-                      answered
-                        ? `
-                          <p class="friend-answer-status">
-                            ✓ You answered this question
-                          </p>
-                          <p>
-                            Your answer: ${escapeHtml(q.answer || "")}
-                          </p>
-                        `
-                        : q.answerType === "options"
-                          ? `
-                            <div class="friend-answer-options">
-                              ${options.map((option, index) => `
-                                <label class="friend-answer-option">
-                                  <input
-                                    type="radio"
-                                    name="friend-answer-${escapeHtml(q.id)}"
-                                    value="${escapeHtml(option)}"
-                                  >
-                                  <span>${escapeHtml(option)}</span>
-                                </label>
-                              `).join("")}
-
-                              ${
-                                q.allowCustomAnswer
-                                  ? `
-                                    <label for="custom-${escapeHtml(q.id)}">
-                                      Or write your own answer
-                                    </label>
-                                    <textarea
-                                      id="custom-${escapeHtml(q.id)}"
-                                      class="text-input friend-custom-answer"
-                                      maxlength="2000"
-                                      placeholder="Your own answer..."
-                                    ></textarea>
-                                  `
-                                  : ""
-                              }
-                            </div>
-
-                            <button
-                              type="button"
-                              class="soft-button answer-friend-question"
-                            >
-                              Send answer ♡
-                            </button>
-                          `
-                          : `
-                            <textarea
-                              class="text-input friend-written-answer"
-                              maxlength="2000"
-                              placeholder="Write your answer..."
-                            ></textarea>
-
-                            <button
-                              type="button"
-                              class="soft-button answer-friend-question"
-                            >
-                              Send answer ♡
-                            </button>
-                          `
-                    }
-                  </article>
-                `;
-              }).join("")
-            : `
-              <div class="empty-state">
-                <span>💌</span>
-                <h3>No questions just yet</h3>
-                <p>Questions your friends send you will appear here.</p>
-              </div>
-            `
-        }
-      </div>
-    `;
-
-    dashboard.appendChild(section);
-
-    section
-      .querySelectorAll(".answer-friend-question")
-      .forEach(button => {
-        button.addEventListener("click", async () => {
-          const card = button.closest("[data-question-id]");
-          const questionId = card.dataset.questionId;
-
-          const question = questions.find(
-            q => q.id === questionId
-          );
-
-          if (!question || question.status !== "pending") {
-            return;
-          }
-
-          const customAnswer = card
-            .querySelector(".friend-custom-answer")
-            ?.value.trim() || "";
-
-          const selectedOption = card
-            .querySelector('input[type="radio"]:checked')
-            ?.value || "";
-
-          const writtenAnswer = card
-            .querySelector(".friend-written-answer")
-            ?.value.trim() || "";
-
-          const answer =
-            writtenAnswer ||
-            customAnswer ||
-            selectedOption;
-
-          if (!answer) {
-            toast("Write or choose an answer first.");
-            return;
-          }
-
-          button.disabled = true;
-          button.textContent = "Sending...";
-
-          try {
-            await updateDoc(
-              doc(db, "friendQuestions", questionId),
-              {
-                answer,
-                status: "answered",
-                answeredAt: serverTimestamp()
-              }
-            );
-
-            toast("Your answer was sent ♡");
-            await loadIncomingFriendQuestions();
-          } catch (error) {
-            console.error("ANSWER FRIEND QUESTION ERROR:", error);
-            toast("Couldn't send your answer.");
-            button.disabled = false;
-            button.textContent = "Send answer ♡";
-          }
-        });
-      });
-
-  } catch (error) {
-    console.error("LOAD INCOMING FRIEND QUESTIONS ERROR:", error);
-
-    const section = document.createElement("section");
-    section.id = "incomingFriendQuestions";
-    section.innerHTML = `
-      <div class="empty-state">
-        <span>🌧️</span>
-        <h3>Couldn't load friend questions</h3>
-        <p>Please refresh and try again.</p>
-      </div>
-    `;
-
-    dashboard.appendChild(section);
-  }
-}
-
-/* =========================================================
-   DASHBOARD
-========================================================= */
-
-async function loadDashboard() {
-
-  $("dashboardContent").innerHTML =
-    `<div class="loading-inline">
-      Loading your things… ✨
-    </div>`;
-
-  try {
-
-    console.log(
-      "Loading dashboard for UID:",
-      currentUser.uid
-    );
-
-    /* ---------- GAMES ---------- */
-
-    const gamesSnap =
-      await getDocs(
-        collection(db, "games")
-      );
-
-    console.log(
-      "ALL GAMES IN FIRESTORE:",
-      gamesSnap.docs.map(d => ({
-        id: d.id,
-        ...d.data()
-      }))
-    );
-
-    dashboardGames =
-      gamesSnap.docs
-        .map(d => ({
-          id: d.id,
-          ...d.data()
-        }))
-        .filter(
-          game =>
-            game.creatorId ===
-            currentUser.uid
-        );
-
-    console.log(
-      "MY GAMES:",
-      dashboardGames
-    );
-
-
-/* ---------- LISTS ---------- */
-
-const listsSnap = await getDocs(
-  collection(db, "lists")
-);
-
-const allLists = listsSnap.docs.map(d => ({
-  id: d.id,
-  ...d.data()
-}));
-
-// Lists I created
-dashboardLists = allLists.filter(
-  list => list.creatorId === currentUser.uid
-);
-
-// Lists other people shared with me
-dashboardSharedLists = allLists.filter(
-  list =>
-    list.sharedWithUid === currentUser.uid &&
-    list.creatorId !== currentUser.uid
-);
-
-    /* ---------- GROUPS ---------- */
-
-    const groupsSnap =
-      await getDocs(
-        collection(db, "listGroups")
-      );
-
-    dashboardGroups =
-      groupsSnap.docs
-        .map(d => ({
-          id: d.id,
-          ...d.data()
-        }))
-        .filter(
-          group =>
-            group.creatorId ===
-            currentUser.uid
-        );
-
-    /* ---------- SORT ---------- */
-
-    dashboardGames.sort(
-      (a, b) =>
-        (b.createdAt?.seconds || 0) -
-        (a.createdAt?.seconds || 0)
-    );
-
-    dashboardLists.sort(
-      (a, b) =>
-        (b.createdAt?.seconds || 0) -
-        (a.createdAt?.seconds || 0)
-    );
-
-    dashboardSharedLists.sort(
-  (a, b) =>
-    (b.createdAt?.seconds || 0) -
-    (a.createdAt?.seconds || 0)
-);
-
-    dashboardGroups.sort(
-      (a, b) =>
-        (a.title || "")
-          .localeCompare(
-            b.title || ""
-          )
-    );
-
-renderDashboard();
-
-populateGroupSelect();
-await populateFriendDropdowns();
-await loadIncomingFriendQuestions();
-await loadSentFriendQuestions();
-
-  } catch (error) {
-
-    console.error(
-      "DASHBOARD ERROR:",
-      error
-    );
-
-    $("dashboardContent").innerHTML = `
-      <div class="empty-state">
-        <span>🌧️</span>
-        <h3>Couldn't load your dashboard</h3>
-        <p>${escapeHtml(error.message)}</p>
-      </div>
-    `;
-  }
-}
-
-/* =========================================================
-   RESPONSE COUNT
-========================================================= */
-
-async function getResponseCount(gameId) {
-
-  try {
-
-    const snap =
-      await getDocs(
-        collection(
-          db,
-          "games",
-          gameId,
-          "responses"
-        )
-      );
-
-    return snap.size;
-
-  } catch {
-
-    return 0;
-  }
-}
-
-/* =========================================================
-   RENDER DASHBOARD
-========================================================= */
-
-async function renderDashboard() {
-
-  const content =
-    $("dashboardContent");
-
-  if (
-    !dashboardGames.length &&
-    !dashboardLists.length &&
-    !dashboardSharedLists.length &&
-    !dashboardGroups.length
-  ) {
-
-    content.innerHTML = `
-      <div class="empty-state">
-        <span>🌷</span>
-        <h3>Nothing here yet</h3>
-        <p>
-          Create a question game or a list
-          and it'll show up here.
-        </p>
-      </div>
-    `;
-
-    return;
-  }
-
-  let html = "";
-
-  /* ---------- GAMES ---------- */
-
-  if (dashboardGames.length) {
-
-    html += `
-      <div class="dashboard-section">
-        <div class="section-label">
-          💭 QUESTION GAMES
-        </div>
-    `;
-
-    for (const game of dashboardGames) {
-
-      const count =
-        await getResponseCount(
-          game.id
-        );
-
-      html += `
-        <article class="dashboard-card">
-
-          <div class="dashboard-icon">
-            💭
-          </div>
-
-          <div class="dashboard-main">
-
-            <h3>
-              ${escapeHtml(
-                game.title ||
-                "Untitled questions"
-              )}
-            </h3>
-
-            <p>
-              ${game.questions?.length || 0}
-              questions ·
-              ${count}
-              saved response${count === 1 ? "" : "s"}
-            </p>
-
-          </div>
-
-          <div class="dashboard-actions">
-
-            <button
-              class="soft-button small"
-              data-action="results"
-              data-id="${game.id}"
-            >
-              View results
-            </button>
-
-            <button
-              class="soft-button small"
-              data-action="edit-game"
-              data-id="${game.id}"
-            >
-              Edit
-            </button>
-
-            <button
-              class="icon-button danger"
-              data-action="delete-game"
-              data-id="${game.id}"
-              aria-label="Delete game"
-            >
-              ×
-            </button>
-
-          </div>
-
-        </article>
-      `;
-    }
-
-    html += `</div>`;
-  }
-
-  /* ---------- GROUPS ---------- */
-
-  if (dashboardGroups.length) {
-
-    html += `
-      <div class="dashboard-section">
-
-        <div class="section-label">
-          ☑️ LIST GROUPS
-        </div>
-    `;
-
-    for (const group of dashboardGroups) {
-
-      const lists =
-        dashboardLists.filter(
-          l =>
-            l.groupId === group.id
-        );
-
-      html += `
-        <div class="group-card">
-
-          <div class="group-heading">
-
-            <div>
-              <span class="group-icon">
-                📚
-              </span>
-
-              <h3>
-                ${escapeHtml(
-                  group.title
-                )}
-              </h3>
-            </div>
-
-            <button
-              class="icon-button danger"
-              data-action="delete-group"
-              data-id="${group.id}"
-              aria-label="Delete group"
-            >
-              ×
-            </button>
-
-          </div>
-
-          ${
-            lists.length
-              ? lists
-                  .map(renderDashboardList)
-                  .join("")
-              : `
-                <p class="mini-empty">
-                  No lists in this group yet.
-                </p>
-              `
-          }
-
-        </div>
-      `;
-    }
-
-    html += `</div>`;
-  }
-
-  /* ---------- UNGROUPED LISTS ---------- */
-
-  const ungrouped =
-    dashboardLists.filter(
-      l => !l.groupId
-    );
-
-  if (ungrouped.length) {
-
-    html += `
-      <div class="dashboard-section">
-
-        <div class="section-label">
-          ☑️ LISTS
-        </div>
-
-        ${ungrouped
-          .map(renderDashboardList)
-          .join("")}
-
-      </div>
-    `;
-  }
-
-  
-/* ---------- SHARED WITH ME ---------- */
-
-if (dashboardSharedLists.length) {
-  html += `
-    <div class="dashboard-section">
-      <div class="section-label">
-        ♡ SHARED WITH ME
-      </div>
-  `;
-
-  for (const list of dashboardSharedLists) {
-    html += `
-      <article class="dashboard-card compact">
-        <div class="dashboard-icon">☑️</div>
-
-        <div class="dashboard-main">
-          <h3>
-            ${escapeHtml(list.title || "Untitled list")}
-          </h3>
-
-          <p>
-            Shared by ${escapeHtml(list.creatorUsername || "a friend")}
-            · ${list.itemCount ?? 0} items
-            · ${escapeHtml(PERMISSIONS[list.permission] || PERMISSIONS.view)}
-          </p>
-        </div>
-
-        <div class="dashboard-actions">
-          <button
-            class="soft-button small"
-            data-action="open-list"
-            data-id="${list.id}"
-          >
-            Open
-          </button>
-        </div>
-      </article>
-    `;
-  }
-
-  html += `</div>`;
-}
-
-  content.innerHTML = html;
-
-  attachDashboardActions();
-}
-
-/* =========================================================
-   DASHBOARD LIST
-========================================================= */
-
-function renderDashboardList(list) {
-
-  const itemsCount =
-    list.itemCount ?? 0;
-
-  return `
-    <article class="dashboard-card compact">
-
-      <div class="dashboard-icon">
-        ☑️
-      </div>
-
-      <div class="dashboard-main">
-
-        <h3>
-          ${escapeHtml(
-            list.title ||
-            "Untitled list"
-          )}
-        </h3>
-
-        <p>
-          ${itemsCount}
-          item${itemsCount === 1 ? "" : "s"} ·
-          ${
-            PERMISSIONS[list.permission] ||
-            PERMISSIONS.view
-          }
-        </p>
-
-      </div>
-
-      <div class="dashboard-actions">
-
-        <button
-          class="soft-button small"
-          data-action="manage-list"
-          data-id="${list.id}"
-        >
-          Manage
-        </button>
-
-        <button
-          class="soft-button small"
-          data-action="open-list"
-          data-id="${list.id}"
-        >
-          Open
-        </button>
-
-        <button
-          class="icon-button danger"
-          data-action="delete-list"
-          data-id="${list.id}"
-          aria-label="Delete list"
-        >
-          ×
-        </button>
-
-      </div>
-
-    </article>
-  `;
-}
-
-/* =========================================================
-   DASHBOARD ACTIONS
-========================================================= */
-
-function attachDashboardActions() {
-
-  document
-    .querySelectorAll("[data-action]")
-    .forEach(button => {
-
-      button.addEventListener(
-        "click",
-        async () => {
-
-          const action =
-            button.dataset.action;
-
-          const id =
-            button.dataset.id;
-
-          if (action === "results")
-            await openResponses(id);
-
-          if (action === "edit-game")
-            await editGame(id);
-
-          if (action === "delete-game")
-            await deleteGame(id);
-
-          if (action === "manage-list")
-            await openListManager(id);
-
-          if (action === "open-list")
-            await openCreatorList(id);
-
-          if (action === "delete-list")
-            await deleteList(id);
-
-          if (action === "delete-group")
-            await deleteGroup(id);
-
-        }
-      );
-
-    });
-}
-
-/* =========================================================
-   DELETE GAME
-========================================================= */
-
-async function deleteGame(id) {
-
-  if (
-    !confirm(
-      "Delete this question game? Its saved responses will no longer be accessible."
-    )
-  ) {
-    return;
-  }
-
-  try {
-
-    await deleteDoc(
-      doc(db, "games", id)
-    );
-
-    toast(
-      "Question game deleted."
-    );
-
-    await loadDashboard();
-
-  } catch (e) {
-
-    console.error(e);
-
-    toast(
-      "Couldn't delete the game."
-    );
-  }
-}
-
-/* =========================================================
-   DELETE GROUP
-========================================================= */
-
-async function deleteGroup(id) {
-
-  const lists =
-    dashboardLists.filter(
-      l => l.groupId === id
-    );
-
-  if (
-    lists.length &&
-    !confirm(
-      "This group contains lists. Delete the group and leave those lists ungrouped?"
-    )
-  ) {
-    return;
-  }
-
-  try {
-
-    for (const list of lists) {
-
-      await updateDoc(
-        doc(
-          db,
-          "lists",
-          list.id
-        ),
-        {
-          groupId: null,
-          updatedAt:
-            serverTimestamp()
-        }
-      );
-    }
-
-    await deleteDoc(
-      doc(
-        db,
-        "listGroups",
-        id
-      )
-    );
-
-    toast(
-      "Group deleted."
-    );
-
-    await loadDashboard();
-
-  } catch (e) {
-
-    console.error(e);
-
-    toast(
-      "Couldn't delete the group."
-    );
-  }
-}
-
-/* =========================================================
-   DELETE LIST
-========================================================= */
-
-async function deleteList(id) {
-
-  if (!confirm("Delete this list?")) {
-    return;
-  }
-
-  try {
-
-    const itemsSnap =
-      await getDocs(
-        collection(
-          db,
-          "lists",
-          id,
-          "items"
-        )
-      );
-
-    await Promise.all(
-      itemsSnap.docs.map(
-        d => deleteDoc(d.ref)
-      )
-    );
-
-    await deleteDoc(
-      doc(
-        db,
-        "lists",
-        id
-      )
-    );
-
-    toast(
-      "List deleted."
-    );
-
-    await loadDashboard();
-
-  } catch (e) {
-
-    console.error(e);
-
-    toast(
-      "Couldn't delete the list."
-    );
-  }
-}
-
-/* =========================================================
-   GROUPS
-========================================================= */
-
-$("saveGroupButton")
-  .addEventListener(
-    "click",
-    async () => {
-
-      const title =
-        $("groupTitle")
-          .value
-          .trim();
-
-      if (!title) {
-        return toast(
-          "Give the group a title first."
-        );
-      }
-
-      try {
-
-        await addDoc(
-          collection(
-            db,
-            "listGroups"
-          ),
-          {
-            creatorId:
-              currentUser.uid,
-
-            title,
-
-            createdAt:
-              serverTimestamp(),
-
-            updatedAt:
-              serverTimestamp()
-          }
-        );
-
-        toast(
-          "Group created ✨"
-        );
-
-        showScreen(
-          "landingScreen"
-        );
-
-        await loadDashboard();
-
-      } catch (e) {
-
-        console.error(e);
-
-        toast(
-          "Couldn't create the group."
-        );
-      }
-    }
-  );
-
-/* =========================================================
-   QUESTION CREATOR
-========================================================= */
-
-function resetQuestionCreator() {
-
-  creatorQuestions = [];
-
-  editingQuestionId = null;
-
-  currentGameId = null;
-  currentGame = null;
-
-  $("gameTitle").value = "";
-
-  $("questionInput").value = "";
-
-  document
-    .querySelector(
-      'input[name="category"][value="very-light"]'
-    )
-    .checked = true;
-
-  document
-    .querySelector(
-      'input[name="answerType"][value="written"]'
-    )
-    .checked = true;
-
-  $("allowCustomAnswer")
-    .checked = false;
-
-  $("gameCreatedArea")
-    .classList
-    .add("hidden");
-
-  $("gameLink").value = "";
-
-  $("questionList")
-    .innerHTML = "";
-
-  $("questionEmpty")
-    .classList
-    .remove("hidden");
-
-  $("cancelEditQuestionButton")
-    .classList
-    .add("hidden");
-
-  $("optionsList")
-    .innerHTML = "";
-
-  renderOptionsEditor();
-}
-
-/* =========================================================
-   START QUESTION CREATOR
-========================================================= */
-
-async function startQuestionCreator(
-  existingGame = null
-) {
-
-  resetQuestionCreator();
-
-  if (existingGame) {
-
-    $("gameTitle").value =
-      existingGame.title || "";
-
-    creatorQuestions =
-      structuredClone(
-        existingGame.questions || []
-      );
-
-    currentGameId =
-      existingGame.id;
-
-    renderQuestionList();
-
-    /*
-     * Existing game already has questions,
-     * so the game-ready section can be shown.
-     *
-     * This does NOT create a new game.
-     */
-    if (creatorQuestions.length > 0) {
-
-      $("gameLink").value =
-        makeGameLink(
-          currentGameId
-        );
-
-      $("gameCreatedArea")
-        .classList
-        .remove("hidden");
-    }
-  }
-
-  showScreen(
-    "questionCreatorScreen"
-  );
-}
-/* =========================================================
-   ANSWER TYPE
-========================================================= */
-
-document
-  .querySelectorAll(
-    'input[name="answerType"]'
-  )
-  .forEach(input => {
-
-    input.addEventListener(
-      "change",
-      renderOptionsEditor
-    );
-
-  });
-
-/* =========================================================
-   CATEGORY
-========================================================= */
-
-document
-  .querySelectorAll(
-    'input[name="category"]'
-  )
-  .forEach(input => {
-
-    input.addEventListener(
-      "change",
-      () => {
-
-        document
-          .querySelectorAll(
-            ".category-choice"
-          )
-          .forEach(x =>
-            x.classList.remove(
-              "active"
-            )
-          );
-
-        input
-          .closest(
-            ".category-choice"
-          )
-          ?.classList
-          .add("active");
-      }
-    );
-
-  });
-
-/* =========================================================
-   OPTIONS EDITOR
-========================================================= */
-
 function renderOptionsEditor() {
 
   const isOptions =
@@ -4121,19 +2925,6 @@ function getQuestionDraft() {
       )
       .filter(Boolean);
 
-  const friendMode =
-    document
-      .querySelector(
-        'input[name="friendQuestionMode"]:checked'
-      )
-      ?.value ||
-    "game";
-
-  const friendUid =
-    $("questionFriendSelect")
-      ?.value ||
-    "";
-
   return {
 
     id:
@@ -4155,297 +2946,166 @@ function getQuestionDraft() {
       answerType === "options"
         ? $("allowCustomAnswer")
             .checked
-        : false,
-
-    friendMode,
-
-    friendUid
+        : false
   };
 }
 
+/* =========================================================
+   CLEAR QUESTION FORM
+========================================================= */
+
+function clearQuestionForm() {
+
+  editingQuestionId = null;
+
+  $("questionInput")
+    .value = "";
+
+  document
+    .querySelector(
+      'input[name="category"][value="very-light"]'
+    )
+    .checked = true;
+
+  document
+    .querySelector(
+      'input[name="answerType"][value="written"]'
+    )
+    .checked = true;
+
+  $("allowCustomAnswer")
+    .checked = false;
+
+  $("optionsList")
+    .innerHTML = "";
+
+  $("cancelEditQuestionButton")
+    .classList
+    .add("hidden");
+
+  renderOptionsEditor();
+}
 
 /* =========================================================
    SAVE QUESTION
    IMPORTANT:
    FIRST QUESTION CREATES GAME + LINK
-   - Normal question → save to game
-   - Friend question → save privately to friend
 ========================================================= */
 
-/* =========================================================
-   SAVE QUESTION
-   - Normal question → save to game
-   - Friend question → save privately to friend
-========================================================= */
+$("saveQuestionButton").addEventListener("click", async () => {
 
-$("saveQuestionButton").addEventListener(
-  "click",
-  async () => {
+  const draft = getQuestionDraft();
 
-    const draft =
-      getQuestionDraft();
-
-    if (!draft.question) {
-      return toast(
-        "Write the question first."
-      );
-    }
-
-    if (
-      draft.answerType === "options" &&
-      draft.options.length < 2
-    ) {
-      return toast(
-        "Add at least two answer choices."
-      );
-    }
-
-
-    /* =====================================================
-       FRIEND QUESTION
-    ===================================================== */
-
-
-if (draft.friendMode === "friend") {
-  if (!draft.friendUid) {
-    return toast("Choose a friend first.");
+  if (!draft.question) {
+    return toast("Write the question first.");
   }
 
-  const selectedFriendOption =
-    $("questionFriendSelect").selectedOptions[0];
-
-  const friendUsername =
-    selectedFriendOption?.textContent.trim() || "";
-
-  console.log("FRIEND QUESTION DEBUG:", {
-    uid: currentUser.uid,
-    toUid: draft.friendUid,
-    question: draft.question,
-    category: draft.category,
-    answerType: draft.answerType
-  });
+  if (
+    draft.answerType === "options" &&
+    draft.options.length < 2
+  ) {
+    return toast("Add at least two answer choices.");
+  }
 
   try {
-    console.log("STEP 1: Creating friend question...");
 
-    const questionRef = await addDoc(
-      collection(db, "friendQuestions"),
-      {
-        questionId: draft.id,
-        question: draft.question,
-        category: draft.category,
-        answerType: draft.answerType,
-        options: draft.options,
-        allowCustomAnswer: draft.allowCustomAnswer,
-        fromUid: currentUser.uid,
-        fromUsername: username || "",
-        toUid: draft.friendUid,
-        toUsername: friendUsername,
-        status: "pending",
-        createdAt: serverTimestamp()
-      }
+    // Add or update the question
+    const index = creatorQuestions.findIndex(
+      q => q.id === draft.id
     );
 
-    console.log(
-      "STEP 2: Friend question created:",
-      questionRef.id
-    );
-
-    toast("Question sent to your friend ♡");
-    clearQuestionForm();
-    await loadDashboard();
-
-  } catch (error) {
-    console.error(
-      "FRIEND QUESTION ERROR:",
-      error.code,
-      error.message
-    );
-
-    toast("Couldn't send the question.");
-  }
-
-  return;
-}
-    
-    
-
-
-
-    /* =====================================================
-       NORMAL GAME QUESTION
-    ===================================================== */
-
-    try {
-
-      // Add or update the question
-      const index =
-        creatorQuestions.findIndex(
-          q =>
-            q.id === draft.id
-        );
-
-
-      if (index >= 0) {
-
-        creatorQuestions[index] =
-          draft;
-
-      } else {
-
-        creatorQuestions.push(
-          draft
-        );
-
-      }
-
-
-      // Remove friend-only fields
-      // before saving to the game
-      const gameQuestions =
-        creatorQuestions.map(q => {
-
-          const {
-            friendMode,
-            friendUid,
-            ...gameQuestion
-          } = q;
-
-          return gameQuestion;
-
-        });
-
-
-      renderQuestionList();
-
-
-      const title =
-        $("gameTitle")
-          .value
-          .trim() ||
-        "Between Us Questions";
-
-
-      /* ===================================================
-         CREATE GAME AFTER FIRST QUESTION
-      =================================================== */
-
-      if (!currentGameId) {
-
-        const ref =
-          await addDoc(
-            collection(
-              db,
-              "games"
-            ),
-            {
-
-              creatorId:
-                currentUser.uid,
-
-              title,
-
-              questions:
-                gameQuestions,
-
-              active:
-                true,
-
-              createdAt:
-                serverTimestamp(),
-
-              updatedAt:
-                serverTimestamp()
-
-            }
-          );
-
-
-        currentGameId =
-          ref.id;
-
-
-        toast(
-          "Your game is ready ✨"
-        );
-
-      } else {
-
-        /* ================================================
-           UPDATE EXISTING GAME
-        ================================================ */
-
-        await updateDoc(
-          doc(
-            db,
-            "games",
-            currentGameId
-          ),
-          {
-
-            title,
-
-            questions:
-              gameQuestions,
-
-            active:
-              true,
-
-            updatedAt:
-              serverTimestamp()
-
-          }
-        );
-
-
-        toast(
-          "Question saved ✨"
-        );
-      }
-
-
-      /* ===================================================
-         SHOW LINK IMMEDIATELY
-      =================================================== */
-
-      $("gameLink").value =
-        makeGameLink(
-          currentGameId
-        );
-
-
-      $("gameCreatedArea")
-        .classList
-        .remove("hidden");
-
-
-      /* ===================================================
-         REFRESH DASHBOARD
-      =================================================== */
-
-      await loadDashboard();
-
-
-      /* ===================================================
-         CLEAR QUESTION FORM
-      =================================================== */
-
-      clearQuestionForm();
-
-    } catch (e) {
-
-      console.error(
-        "SAVE QUESTION ERROR:",
-        e
-      );
-
-      toast(
-        "Couldn't save the question."
-      );
+    if (index >= 0) {
+      creatorQuestions[index] = draft;
+    } else {
+      creatorQuestions.push(draft);
     }
 
+    renderQuestionList();
+
+    const title =
+      $("gameTitle").value.trim() ||
+      "Between Us Questions";
+
+
+    // ==========================================
+    // CREATE GAME AFTER FIRST QUESTION
+    // ==========================================
+
+    if (!currentGameId) {
+
+      const ref = await addDoc(
+        collection(db, "games"),
+        {
+          creatorId: currentUser.uid,
+          title,
+          questions: creatorQuestions,
+          active: true,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }
+      );
+
+      currentGameId = ref.id;
+
+      toast("Your game is ready ✨");
+
+    } else {
+
+      // ==========================================
+      // UPDATE EXISTING GAME
+      // ==========================================
+
+      await updateDoc(
+        doc(db, "games", currentGameId),
+        {
+          title,
+          questions: creatorQuestions,
+          active: true,
+          updatedAt: serverTimestamp()
+        }
+      );
+
+      toast("Question saved ✨");
+    }
+
+
+    // ==========================================
+    // SHOW LINK IMMEDIATELY
+    // ==========================================
+
+    $("gameLink").value =
+      makeGameLink(currentGameId);
+
+    $("gameCreatedArea")
+      .classList
+      .remove("hidden");
+
+
+    // ==========================================
+    // REFRESH DASHBOARD
+    // ==========================================
+
+    await loadDashboard();
+
+
+    // ==========================================
+    // CLEAR QUESTION FORM
+    // ==========================================
+
+    clearQuestionForm();
+
+  } catch (e) {
+
+    console.error(
+      "SAVE QUESTION ERROR:",
+      e
+    );
+
+    toast(
+      "Couldn't save the question."
+    );
   }
-);
+});
 /* =========================================================
    CANCEL EDIT
 ========================================================= */
@@ -5037,223 +3697,6 @@ function renderPlayerQuestion() {
         : "Save answer →";
 }
 
-
-
-async function loadQuestionFriends() {
-  const select = $("questionFriendSelect");
-
-  if (!select || !currentUser) return;
-
-  select.innerHTML = `
-    <option value="">Loading friends...</option>
-  `;
-
-  try {
-    const friendsQuery = query(
-      collection(db, "friendships"),
-      where("users", "array-contains", currentUser.uid)
-    );
-
-    const snapshot = await getDocs(friendsQuery);
-
-    console.log(
-      "QUESTION FRIENDS: documents found:",
-      snapshot.size
-    );
-
-    select.innerHTML = `
-      <option value="">Choose a friend...</option>
-    `;
-
-    snapshot.forEach(friendshipDoc => {
-      const data = friendshipDoc.data();
-
-      let friendUid = "";
-      let friendUsername = "";
-
-      if (data.user1Uid === currentUser.uid) {
-        friendUid = data.user2Uid || "";
-        friendUsername = data.user2Username || "";
-      } else if (data.user2Uid === currentUser.uid) {
-        friendUid = data.user1Uid || "";
-        friendUsername = data.user1Username || "";
-      } else {
-        friendUid = (data.users || []).find(
-          uid => uid !== currentUser.uid
-        ) || "";
-      }
-
-      if (!friendUid) return;
-
-      const option = document.createElement("option");
-      option.value = friendUid;
-      option.textContent = friendUsername || "Friend";
-
-      select.appendChild(option);
-    });
-
-    if (snapshot.empty) {
-      select.innerHTML = `
-        <option value="">No accepted friends found</option>
-      `;
-    }
-
-  } catch (error) {
-    console.error("LOAD QUESTION FRIENDS ERROR:", error);
-
-    select.innerHTML = `
-      <option value="">Couldn't load friends</option>
-    `;
-
-    toast("Couldn't load your friends.");
-  }
-}
-
-
-
-/* =========================================================
-   POPULATE ALL FRIEND DROPDOWNS
-========================================================= */
-
-async function populateFriendDropdowns() {
-  if (!currentUser) return;
-
-  const selectIds = [
-    "questionFriendSelect",
-    "listFriendSelect",
-    "manageListFriendSelect"
-  ];
-
-  const selects = selectIds
-    .map(id => $(id))
-    .filter(Boolean);
-
-  if (!selects.length) return;
-
-  selects.forEach(select => {
-    select.innerHTML = `<option value="">Loading friends...</option>`;
-  });
-
-  try {
-    const friendsQuery = query(
-      collection(db, "friendships"),
-      where("users", "array-contains", currentUser.uid)
-    );
-
-    const snapshot = await getDocs(friendsQuery);
-    const friends = [];
-
-    snapshot.forEach(friendshipDoc => {
-      const data = friendshipDoc.data();
-
-      let friendUid = "";
-      let friendUsername = "";
-
-      if (data.user1Uid === currentUser.uid) {
-        friendUid = data.user2Uid || "";
-        friendUsername = data.user2Username || "";
-      } else if (data.user2Uid === currentUser.uid) {
-        friendUid = data.user1Uid || "";
-        friendUsername = data.user1Username || "";
-      } else {
-        friendUid =
-          (data.users || []).find(
-            uid => uid !== currentUser.uid
-          ) || "";
-      }
-
-      if (friendUid) {
-        friends.push({
-          uid: friendUid,
-          username: friendUsername || "Friend"
-        });
-      }
-    });
-
-    friends.sort((a, b) =>
-      a.username.localeCompare(b.username)
-    );
-
-    selects.forEach(select => {
-      // Preserve the dropdown's original first option.
-      const firstOption = select.options[0];
-      const placeholderText =
-        firstOption?.textContent || "Choose a friend...";
-
-      select.innerHTML = "";
-
-      const placeholder = document.createElement("option");
-      placeholder.value = "";
-      placeholder.textContent = placeholderText;
-      select.appendChild(placeholder);
-
-      friends.forEach(friend => {
-        const option = document.createElement("option");
-        option.value = friend.uid;
-        option.textContent = friend.username;
-        select.appendChild(option);
-      });
-
-      if (friends.length === 0) {
-        placeholder.textContent = "No accepted friends found";
-      }
-    });
-
-    console.log(
-      "FRIEND DROPDOWNS POPULATED:",
-      friends.length,
-      friends
-    );
-
-  } catch (error) {
-    console.error("POPULATE FRIEND DROPDOWNS ERROR:", error);
-
-    selects.forEach(select => {
-      select.innerHTML =
-        `<option value="">Couldn't load friends</option>`;
-    });
-
-    toast("Couldn't load your friends.");
-  }
-}
-
-
-/* =========================================================
-   FRIEND QUESTION TOGGLE
-========================================================= */
-
-document
-  .querySelectorAll('input[name="friendQuestionMode"]')
-  .forEach(radio => {
-
-    radio.addEventListener("change", async () => {
-
-      const selected = document.querySelector(
-        'input[name="friendQuestionMode"]:checked'
-      )?.value;
-
-      const area = $("friendQuestionSelectArea");
-
-      if (!area) return;
-
-      if (selected === "friend") {
-
-        area.classList.remove("hidden");
-
-        await populateFriendDropdowns();
-
-      } else {
-
-        area.classList.add("hidden");
-
-        $("questionFriendSelect").value = "";
-
-      }
-
-    });
-
-  });
-
 /* =========================================================
    SAVE PLAYER RESPONSE
 ========================================================= */
@@ -5804,98 +4247,6 @@ function resetListCreator() {
 }
 
 /* =========================================================
-   QUESTIONS I SENT TO FRIENDS
-========================================================= */
-
-async function loadSentFriendQuestions() {
-  const dashboard = $("dashboardContent");
-
-  if (!dashboard || !currentUser) return;
-
-  dashboard.querySelector("#sentFriendQuestions")?.remove();
-
-  try {
-    const sentQuery = query(
-      collection(db, "friendQuestions"),
-      where("fromUid", "==", currentUser.uid)
-    );
-
-    const snapshot = await getDocs(sentQuery);
-
-    const questions = snapshot.docs
-      .map(d => ({
-        id: d.id,
-        ...d.data()
-      }))
-      .sort(
-        (a, b) =>
-          (b.createdAt?.seconds || 0) -
-          (a.createdAt?.seconds || 0)
-      );
-
-    const section = document.createElement("section");
-    section.id = "sentFriendQuestions";
-    section.className = "friend-inbox";
-
-    section.innerHTML = `
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">Your little messages</p>
-          <h2>♡ Questions I've Sent</h2>
-        </div>
-      </div>
-
-      <div class="friend-inbox-list">
-        ${
-          questions.length
-            ? questions.map(q => `
-                <article class="friend-question-card">
-                  <p class="muted">
-                    To ${escapeHtml(q.toUsername || "Your friend")}
-                  </p>
-
-                  <h3>${escapeHtml(q.question || "")}</h3>
-
-                  ${
-                    q.status === "answered"
-                      ? `
-                        <p class="friend-answer-status">
-                          ✓ Your friend answered
-                        </p>
-                        <p>
-                          <strong>Their response:</strong>
-                          ${escapeHtml(q.answer || "")}
-                        </p>
-                      `
-                      : `
-                        <p class="muted">
-                          💌 Waiting for their answer...
-                        </p>
-                      `
-                  }
-                </article>
-              `).join("")
-            : `
-              <div class="empty-state">
-                <span>💌</span>
-                <h3>No questions sent yet</h3>
-                <p>Questions you send to friends will appear here.</p>
-              </div>
-            `
-        }
-      </div>
-    `;
-
-    dashboard.appendChild(section);
-
-  } catch (error) {
-    console.error("LOAD SENT FRIEND QUESTIONS ERROR:", error);
-
-    toast("Couldn't load your sent questions.");
-  }
-}
-
-/* =========================================================
    GROUP SELECT
 ========================================================= */
 
@@ -6060,91 +4411,138 @@ function makeListLink(id) {
   return url.toString();
 }
 
-
 /* =========================================================
    CREATE LIST
 ========================================================= */
 
-$("createListSaveButton").addEventListener("click", async () => {
-  if (!currentUser) {
-    toast("Please sign in first.");
-    return;
-  }
+$("createListSaveButton")
+  .addEventListener(
+    "click",
+    async () => {
 
-  const title =
-    $("listTitle").value.trim() || "Our List";
+      const title =
+        $("listTitle")
+          .value
+          .trim() ||
+        "Our List";
 
-  const permission =
-    document.querySelector('input[name="permission"]:checked')
-      ?.value || "view";
+      const permission =
+        document
+          .querySelector(
+            'input[name="permission"]:checked'
+          )
+          ?.value ||
+        "view";
 
-  const groupId =
-    $("listGroupSelect").value || null;
+      const groupId =
+        $("listGroupSelect")
+          .value ||
+        null;
 
-  // Get the selected friend, if one was chosen.
-  const friendSelect = $("listFriendSelect");
-  const friendUid = friendSelect?.value || null;
+      const items =
+        $("startWithItems")
+          .checked
 
-  const friendUsername = friendUid
-    ? friendSelect.selectedOptions[0]?.textContent.trim() || ""
-    : "";
+          ? [
+              ...document
+                .querySelectorAll(
+                  ".starter-item-value"
+                )
+            ]
+              .map(
+                x =>
+                  x.value.trim()
+              )
+              .filter(Boolean)
 
-  const items = $("startWithItems").checked
-    ? [...document.querySelectorAll(".starter-item-value")]
-        .map(input => input.value.trim())
-        .filter(Boolean)
-    : [];
+          : [];
 
-  try {
-    const ref = await addDoc(collection(db, "lists"), {
-      creatorId: currentUser.uid,
-      creatorUsername: username || "",
-      title,
-      groupId,
-      permission,
+      try {
 
-      // Sharing information
-      sharedWithUid: friendUid,
-      sharedWithUsername: friendUsername,
-      sharedAt: friendUid ? serverTimestamp() : null,
+        const ref =
+          await addDoc(
+            collection(
+              db,
+              "lists"
+            ),
+            {
+              creatorId:
+                currentUser.uid,
 
-      itemCount: items.length,
-      active: true,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    });
+              title,
 
-    currentListId = ref.id;
+              groupId,
 
-    for (const text of items) {
-      await addDoc(
-        collection(db, "lists", currentListId, "items"),
-        {
-          text,
-          checked: false,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
+              permission,
+
+              itemCount:
+                items.length,
+
+              active: true,
+
+              createdAt:
+                serverTimestamp(),
+
+              updatedAt:
+                serverTimestamp()
+            }
+          );
+
+        currentListId =
+          ref.id;
+
+        for (
+          const text of items
+        ) {
+
+          await addDoc(
+            collection(
+              db,
+              "lists",
+              currentListId,
+              "items"
+            ),
+            {
+              text,
+
+              checked:
+                false,
+
+              createdAt:
+                serverTimestamp(),
+
+              updatedAt:
+                serverTimestamp()
+            }
+          );
         }
-      );
+
+        $("listLink")
+          .value =
+            makeListLink(
+              currentListId
+            );
+
+        $("listCreatedArea")
+          .classList
+          .remove("hidden");
+
+        toast(
+          "List created ✨"
+        );
+
+        await loadDashboard();
+
+      } catch (e) {
+
+        console.error(e);
+
+        toast(
+          "Couldn't create the list."
+        );
+      }
     }
-
-    $("listLink").value = makeListLink(currentListId);
-
-    $("listCreatedArea").classList.remove("hidden");
-
-    toast(
-      friendUid
-        ? `List created and shared with ${friendUsername} ✨`
-        : "List created ✨"
-    );
-
-    await loadDashboard();
-
-  } catch (e) {
-    console.error("CREATE LIST ERROR:", e);
-    toast("Couldn't create the list.");
-  }
-});
+  );
 
 /* =========================================================
    LIST BUTTONS
@@ -6267,191 +4665,6 @@ async function refreshPlayerListItems() {
       (a.createdAt?.seconds || 0) -
       (b.createdAt?.seconds || 0)
   );
-}
-
-/* =========================================================
-   CLEAR QUESTION FORM
-========================================================= */
-
-function clearQuestionForm() {
-
-  editingQuestionId = null;
-
-
-  $("questionInput")
-    .value = "";
-
-
-  document
-    .querySelector(
-      'input[name="category"][value="very-light"]'
-    )
-    .checked = true;
-
-
-  document
-    .querySelector(
-      'input[name="answerType"][value="written"]'
-    )
-    .checked = true;
-
-
-  $("allowCustomAnswer")
-    .checked = false;
-
-
-  $("optionsList")
-    .innerHTML = "";
-
-
-  $("cancelEditQuestionButton")
-    .classList
-    .add("hidden");
-
-
-
-/* =========================================================
-   LOAD ACCEPTED FRIENDS INTO QUESTION SELECT
-========================================================= */
-
-async function loadQuestionFriends() {
-
-  const select = $("questionFriendSelect");
-
-  if (!select || !currentUser) {
-    return;
-  }
-
-  select.innerHTML = `
-    <option value="">Loading friends...</option>
-  `;
-
-  try {
-
-    const friendsQuery = query(
-      collection(db, "friendships"),
-      where("users", "array-contains", currentUser.uid)
-    );
-
-    const snapshot = await getDocs(friendsQuery);
-
-    console.log(
-      "QUESTION FRIENDS: friendship documents found:",
-      snapshot.size
-    );
-
-    select.innerHTML = `
-      <option value="">Choose a friend...</option>
-    `;
-
-    snapshot.forEach(friendshipDoc => {
-
-      const data = friendshipDoc.data();
-
-      let friendUid = "";
-      let friendUsername = "";
-
-      if (data.user1Uid === currentUser.uid) {
-
-        friendUid = data.user2Uid || "";
-        friendUsername = data.user2Username || "";
-
-      } else if (data.user2Uid === currentUser.uid) {
-
-        friendUid = data.user1Uid || "";
-        friendUsername = data.user1Username || "";
-
-      } else {
-
-        // Fallback if the document only has a users array.
-        const otherUid = (data.users || []).find(
-          uid => uid !== currentUser.uid
-        );
-
-        friendUid = otherUid || "";
-
-      }
-
-      if (!friendUid) {
-        console.warn(
-          "Friendship has no identifiable friend:",
-          friendshipDoc.id,
-          data
-        );
-        return;
-      }
-
-      const option = document.createElement("option");
-
-      option.value = friendUid;
-      option.textContent = friendUsername || "Friend";
-
-      select.appendChild(option);
-
-      console.log(
-        "QUESTION FRIEND ADDED:",
-        friendUsername || "(username missing)",
-        friendUid
-      );
-
-    });
-
-    if (snapshot.empty) {
-      select.innerHTML = `
-        <option value="">No accepted friends found</option>
-      `;
-    }
-
-  } catch (error) {
-
-    console.error(
-      "LOAD QUESTION FRIENDS ERROR:",
-      error
-    );
-
-    select.innerHTML = `
-      <option value="">Couldn't load friends</option>
-    `;
-
-    toast("Couldn't load your friends.");
-
-  }
-}
-
-  /* =====================================================
-     RESET FRIEND QUESTION
-  ===================================================== */
-
-  const gameMode =
-    document.querySelector(
-      'input[name="friendQuestionMode"][value="game"]'
-    );
-
-  if (gameMode) {
-    gameMode.checked = true;
-  }
-
-
-  const friendSelect =
-    $("questionFriendSelect");
-
-  if (friendSelect) {
-    friendSelect.value = "";
-  }
-
-
-  const friendSelectArea =
-    $("friendQuestionSelectArea");
-
-  if (friendSelectArea) {
-    friendSelectArea
-      .classList
-      .add("hidden");
-  }
-
-
-  renderOptionsEditor();
-
 }
 
 /* =========================================================
@@ -7245,43 +5458,1596 @@ async function copyText(value) {
   }
 }
 
-
-const footerYear = document.getElementById("footerYear");
-
-if (footerYear) {
-  footerYear.textContent = new Date().getFullYear();
-}
-
-
-
-/* =========================================================
-   LOG OUT
-========================================================= */
-$("logoutButton")?.addEventListener("click", async () => {
-  try {
-    await logout();
-
-    currentUser = null;
-    username = "";
-
-    showScreen("landingScreen");
-
-    // Hide the logout button
-    $("logoutButton")?.classList.add("hidden");
-
-    toast("You have been logged out. ♡");
-  } catch (error) {
-    console.error("LOGOUT ERROR:", error);
-    toast("Couldn't log out. Please try again.");
-  }
-});
-
-export {
-  
-  
-}
 /* =========================================================
    START APP
 ========================================================= */
 
 boot();
+
+
+/* =========================================================
+   NAVIGATION BUTTONS
+========================================================= */
+
+$("homeButton")
+  .addEventListener("click", () => {
+
+    setParam("game", null);
+    setParam("list", null);
+
+    showScreen("landingScreen");
+
+    loadDashboard();
+  });
+
+$("backButton")
+  .addEventListener("click", () => {
+
+    setParam("game", null);
+    setParam("list", null);
+
+    showScreen("landingScreen");
+
+    loadDashboard();
+  });
+
+$("finishHomeButton")
+  .addEventListener("click", () => {
+
+    setParam("game", null);
+    setParam("list", null);
+
+    showScreen("landingScreen");
+
+    loadDashboard();
+  });
+
+$("createQuestionsButton")
+  .addEventListener(
+    "click",
+    startQuestionCreator
+  );
+
+$("createListButton")
+  .addEventListener(
+    "click",
+    startListCreator
+  );
+
+$("createGroupButton")
+  .addEventListener(
+    "click",
+    () => {
+
+      $("groupTitle").value = "";
+
+      showScreen(
+        "groupCreatorScreen"
+      );
+    }
+  );
+
+  
+/* =========================================================
+   QUESTIONS FROM FRIENDS
+========================================================= */
+
+async function loadIncomingFriendQuestions() {
+  const dashboard = $("dashboardContent");
+
+  if (!dashboard || !currentUser) return;
+
+  // Remove the old section before refreshing it.
+  dashboard.querySelector("#incomingFriendQuestions")?.remove();
+
+  try {
+    const questionsQuery = query(
+      collection(db, "friendQuestions"),
+      where("toUid", "==", currentUser.uid)
+    );
+
+    const snapshot = await getDocs(questionsQuery);
+
+    const questions = snapshot.docs
+      .map(d => ({
+        id: d.id,
+        ...d.data()
+      }))
+      .sort(
+        (a, b) =>
+          (b.createdAt?.seconds || 0) -
+          (a.createdAt?.seconds || 0)
+      );
+
+    const section = document.createElement("section");
+    section.id = "incomingFriendQuestions";
+    section.className = "friend-inbox";
+
+    section.innerHTML = `
+      <details open>
+        <summary class="section-heading">
+          <div>
+            <p class="eyebrow">A little something for you</p>
+            <h2>♡ Questions from Friends</h2>
+          </div>
+          <span class="friend-question-count">
+            ${questions.filter(q => q.status === "pending").length} new
+          </span>
+        </summary>
+
+      <div class="friend-inbox-list">
+        ${
+          questions.length
+            ? questions.map(q => {
+                const answered = q.status === "answered";
+
+                const options = Array.isArray(q.options)
+                  ? q.options
+                  : [];
+
+                return `
+                  <article
+                    class="friend-question-card"
+                    data-question-id="${escapeHtml(q.id)}"
+                  >
+                    <p class="muted">
+                      From ${escapeHtml(q.fromUsername || "A friend")}
+                    </p>
+
+                    <h3>${escapeHtml(q.question || "")}</h3>
+
+                    ${
+                      answered
+                        ? `
+                          <p class="friend-answer-status">
+                            ✓ You answered this question
+                          </p>
+                          <p>
+                            Your answer: ${escapeHtml(q.answer || "")}
+                          </p>
+                        `
+                        : q.answerType === "options"
+                          ? `
+                            <div class="friend-answer-options">
+                              ${options.map((option, index) => `
+                                <label class="friend-answer-option">
+                                  <input
+                                    type="radio"
+                                    name="friend-answer-${escapeHtml(q.id)}"
+                                    value="${escapeHtml(option)}"
+                                  >
+                                  <span>${escapeHtml(option)}</span>
+                                </label>
+                              `).join("")}
+
+                              ${
+                                q.allowCustomAnswer
+                                  ? `
+                                    <label for="custom-${escapeHtml(q.id)}">
+                                      Or write your own answer
+                                    </label>
+                                    <textarea
+                                      id="custom-${escapeHtml(q.id)}"
+                                      class="text-input friend-custom-answer"
+                                      maxlength="2000"
+                                      placeholder="Your own answer..."
+                                    ></textarea>
+                                  `
+                                  : ""
+                              }
+                            </div>
+
+                            <button
+                              type="button"
+                              class="soft-button answer-friend-question"
+                            >
+                              Send answer ♡
+                            </button>
+                          `
+                          : `
+                            <textarea
+                              class="text-input friend-written-answer"
+                              maxlength="2000"
+                              placeholder="Write your answer..."
+                            ></textarea>
+
+                            <button
+                              type="button"
+                              class="soft-button answer-friend-question"
+                            >
+                              Send answer ♡
+                            </button>
+                          `
+                    }
+                  </article>
+                `;
+              }).join("")
+            : `
+              <div class="empty-state">
+                <span>💌</span>
+                <h3>No questions just yet</h3>
+                <p>Questions your friends send you will appear here.</p>
+              </div>
+            `
+        }
+      </div>
+      </details>
+    `;
+
+    dashboard.appendChild(section);
+
+    section
+      .querySelectorAll(".answer-friend-question")
+      .forEach(button => {
+        button.addEventListener("click", async () => {
+          const card = button.closest("[data-question-id]");
+          const questionId = card.dataset.questionId;
+
+          const question = questions.find(
+            q => q.id === questionId
+          );
+
+          if (!question || question.status !== "pending") {
+            return;
+          }
+
+          const customAnswer = card
+            .querySelector(".friend-custom-answer")
+            ?.value.trim() || "";
+
+          const selectedOption = card
+            .querySelector('input[type="radio"]:checked')
+            ?.value || "";
+
+          const writtenAnswer = card
+            .querySelector(".friend-written-answer")
+            ?.value.trim() || "";
+
+          const answer =
+            writtenAnswer ||
+            customAnswer ||
+            selectedOption;
+
+          if (!answer) {
+            toast("Write or choose an answer first.");
+            return;
+          }
+
+          button.disabled = true;
+          button.textContent = "Sending...";
+
+          try {
+            await updateDoc(
+              doc(db, "friendQuestions", questionId),
+              {
+                answer,
+                status: "answered",
+                answeredAt: serverTimestamp()
+              }
+            );
+
+            toast("Your answer was sent ♡");
+            await loadIncomingFriendQuestions();
+          } catch (error) {
+            console.error("ANSWER FRIEND QUESTION ERROR:", error);
+            toast("Couldn't send your answer.");
+            button.disabled = false;
+            button.textContent = "Send answer ♡";
+          }
+        });
+      });
+
+  } catch (error) {
+    console.error("LOAD INCOMING FRIEND QUESTIONS ERROR:", error);
+
+    const section = document.createElement("section");
+    section.id = "incomingFriendQuestions";
+    section.innerHTML = `
+      <div class="empty-state">
+        <span>🌧️</span>
+        <h3>Couldn't load friend questions</h3>
+        <p>Please refresh and try again.</p>
+      </div>
+    `;
+
+    dashboard.appendChild(section);
+  }
+}
+
+/* =========================================================
+   QUESTIONS I SENT TO FRIENDS
+========================================================= */
+
+async function loadSentFriendQuestions() {
+  const dashboard = $("dashboardContent");
+  if (!dashboard || !currentUser) return;
+
+  dashboard.querySelector("#sentFriendQuestions")?.remove();
+
+  const section = document.createElement("section");
+  section.id = "sentFriendQuestions";
+  section.className = "friend-inbox";
+  section.innerHTML = `
+    <details open>
+      <summary class="section-heading">
+        <div>
+          <p class="eyebrow">Your questions, your connections</p>
+          <h2>💌 Questions I Sent</h2>
+        </div>
+        <span class="friend-question-count" id="sentFriendQuestionCount">Loading…</span>
+      </summary>
+      <div class="friend-inbox-list" id="sentFriendQuestionList">
+        <p class="muted">Loading your sent questions…</p>
+      </div>
+    </details>
+  `;
+  dashboard.appendChild(section);
+
+  const list = section.querySelector("#sentFriendQuestionList");
+  const count = section.querySelector("#sentFriendQuestionCount");
+
+  try {
+    const snapshot = await getDocs(query(
+      collection(db, "friendQuestions"),
+      where("fromUid", "==", currentUser.uid)
+    ));
+
+    const questions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
+    dashboardFriendQuestions = questions;
+    count.textContent = `${questions.length} sent`;
+
+    if (!questions.length) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <span>💌</span>
+          <h3>No questions sent yet</h3>
+          <p>Questions you send to friends will appear here.</p>
+        </div>
+      `;
+      return;
+    }
+
+    list.innerHTML = questions.map(q => `
+      <article class="friend-question-card" data-sent-question-id="${escapeHtml(q.id)}">
+        <p class="muted">To ${escapeHtml(q.toUsername || "Your friend")} · ${escapeHtml(q.category || "General")}</p>
+        <h3 class="sent-question-text">${escapeHtml(q.question || "Untitled question")}</h3>
+        <p class="${q.status === "answered" ? "friend-answer-status" : "muted"}">
+          ${q.status === "answered" ? "✓ Your friend answered" : "Waiting for their answer…"}
+        </p>
+        ${q.status === "answered" && q.answer ? `<p><strong>Their answer:</strong> ${escapeHtml(q.answer)}</p>` : ""}
+        <div class="friend-actions">
+          ${q.status !== "answered" ? `<button type="button" class="soft-button small" data-edit-sent-question="${escapeHtml(q.id)}">Edit</button>` : ""}
+          <button type="button" class="soft-button small" data-delete-sent-question="${escapeHtml(q.id)}">Delete</button>
+        </div>
+        <form class="sent-question-edit-form hidden">
+          <label>Question</label>
+          <textarea class="text-input sent-question-edit-input" maxlength="500" required>${escapeHtml(q.question || "")}</textarea>
+          <div class="friend-actions">
+            <button type="submit" class="soft-button small">Save changes</button>
+            <button type="button" class="soft-button small" data-cancel-sent-edit>Cancel</button>
+          </div>
+        </form>
+      </article>
+    `).join("");
+
+    list.addEventListener("click", async event => {
+      const editButton = event.target.closest("[data-edit-sent-question]");
+      const deleteButton = event.target.closest("[data-delete-sent-question]");
+      const cancelButton = event.target.closest("[data-cancel-sent-edit]");
+
+      if (cancelButton) {
+        cancelButton.closest(".sent-question-edit-form")?.classList.add("hidden");
+        return;
+      }
+
+      if (editButton) {
+        const card = editButton.closest("[data-sent-question-id]");
+        card?.querySelector(".sent-question-edit-form")?.classList.remove("hidden");
+        card?.querySelector(".sent-question-edit-input")?.focus();
+        return;
+      }
+
+      if (deleteButton) {
+        const id = deleteButton.dataset.deleteSentQuestion;
+        const question = questions.find(q => q.id === id);
+        if (!question || !confirm("Delete this question you sent?")) return;
+
+        try {
+          await deleteDoc(doc(db, "friendQuestions", id));
+          toast("Sent question deleted.");
+          await loadSentFriendQuestions();
+        } catch (error) {
+          console.error("DELETE SENT FRIEND QUESTION ERROR:", error);
+          toast("Couldn't delete it. Your Firestore rules must allow the sender to delete their own question.");
+        }
+      }
+    });
+
+    list.querySelectorAll(".sent-question-edit-form").forEach(form => {
+      form.addEventListener("submit", async event => {
+        event.preventDefault();
+        const card = form.closest("[data-sent-question-id]");
+        const id = card?.dataset.sentQuestionId;
+        const question = questions.find(q => q.id === id);
+        const newQuestion = form.querySelector(".sent-question-edit-input")?.value.trim();
+
+        if (!question || question.status === "answered") {
+          toast("Answered questions can no longer be edited.");
+          return;
+        }
+        if (!newQuestion) {
+          toast("Enter a question first.");
+          return;
+        }
+
+        const submit = form.querySelector('button[type="submit"]');
+        submit.disabled = true;
+        try {
+          await updateDoc(doc(db, "friendQuestions", id), {
+            question: newQuestion,
+            updatedAt: serverTimestamp()
+          });
+          toast("Question updated ♡");
+          await loadSentFriendQuestions();
+        } catch (error) {
+          console.error("EDIT SENT FRIEND QUESTION ERROR:", error);
+          toast("Couldn't edit it. Your Firestore rules must allow the sender to edit their pending question.");
+        } finally {
+          submit.disabled = false;
+        }
+      });
+    });
+
+  } catch (error) {
+    console.error("LOAD SENT FRIEND QUESTIONS ERROR:", error);
+    count.textContent = "Unavailable";
+    list.innerHTML = `<div class="mini-empty">Couldn't load sent questions. Please refresh and try again.</div>`;
+  }
+}
+
+/* =========================================================
+   PERSONAL QUESTIONS — PRIVATE DRAFTS
+========================================================= */
+
+async function loadPersonalQuestionDrafts() {
+  const dashboard = $("dashboardContent");
+  if (!dashboard || !currentUser) return;
+
+  dashboard.querySelector("#personalQuestionDrafts")?.remove();
+
+  const section = document.createElement("section");
+  section.id = "personalQuestionDrafts";
+  section.className = "friend-inbox";
+  section.innerHTML = `
+    <details>
+      <summary class="section-heading">
+        <div>
+          <p class="eyebrow">A quiet space for your own thoughts</p>
+          <h2>📝 Personal Questions</h2>
+        </div>
+        <span class="muted">Private to you</span>
+      </summary>
+      <div class="personal-drafts-content">
+        <form id="personalQuestionForm">
+          <label for="personalQuestionInput">Save a question for yourself</label>
+          <textarea id="personalQuestionInput" class="text-input" maxlength="500" required placeholder="A question to reflect on…"></textarea>
+          <div class="friend-actions">
+            <button class="soft-button" type="submit" id="savePersonalQuestionButton">Save question ♡</button>
+            <button class="soft-button hidden" type="button" id="cancelPersonalQuestionEdit">Cancel edit</button>
+          </div>
+        </form>
+        <div id="personalQuestionList"><p class="muted">Loading your private questions…</p></div>
+      </div>
+    </details>
+  `;
+  dashboard.appendChild(section);
+
+  const form = section.querySelector("#personalQuestionForm");
+  const input = section.querySelector("#personalQuestionInput");
+  const list = section.querySelector("#personalQuestionList");
+  const saveButton = section.querySelector("#savePersonalQuestionButton");
+  const cancelButton = section.querySelector("#cancelPersonalQuestionEdit");
+  let drafts = [];
+  let editingId = null;
+
+  function resetForm() {
+    editingId = null;
+    input.value = "";
+    saveButton.textContent = "Save question ♡";
+    cancelButton.classList.add("hidden");
+  }
+
+  function renderDrafts() {
+    if (!drafts.length) {
+      list.innerHTML = `<div class="mini-empty">Your private questions will appear here. 🌷</div>`;
+      return;
+    }
+
+    list.innerHTML = drafts.map(draft => `
+      <article class="dashboard-card compact" data-personal-draft-id="${escapeHtml(draft.id)}">
+        <div class="dashboard-icon">📝</div>
+        <div class="dashboard-main">
+          <p>${escapeHtml(draft.question)}</p>
+          <small class="muted">Only you can see this question.</small>
+        </div>
+        <div class="dashboard-actions">
+          <button type="button" class="soft-button small" data-edit-personal-draft="${escapeHtml(draft.id)}">Edit</button>
+          <button type="button" class="soft-button small" data-delete-personal-draft="${escapeHtml(draft.id)}">Delete</button>
+        </div>
+      </article>
+    `).join("");
+  }
+
+  async function fetchDrafts() {
+    const snapshot = await getDocs(query(
+      collection(db, "personalQuestionDrafts"),
+      where("ownerUid", "==", currentUser.uid)
+    ));
+    drafts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.updatedAt?.seconds || b.createdAt?.seconds || 0) - (a.updatedAt?.seconds || a.createdAt?.seconds || 0));
+    renderDrafts();
+  }
+
+  form.addEventListener("submit", async event => {
+    event.preventDefault();
+    const question = input.value.trim();
+    if (!question) return toast("Write a question first.");
+    if (question.length > 500) return toast("Questions must be 500 characters or fewer.");
+
+    saveButton.disabled = true;
+    try {
+      if (editingId) {
+        await updateDoc(doc(db, "personalQuestionDrafts", editingId), {
+          question,
+          updatedAt: serverTimestamp()
+        });
+        toast("Private question updated ♡");
+      } else {
+        await addDoc(collection(db, "personalQuestionDrafts"), {
+          ownerUid: currentUser.uid,
+          question,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+        toast("Private question saved ♡");
+      }
+      resetForm();
+      await fetchDrafts();
+    } catch (error) {
+      console.error("SAVE PERSONAL QUESTION ERROR:", error);
+      toast("Couldn't save it. Check that your personalQuestionDrafts Firestore rules are published.");
+    } finally {
+      saveButton.disabled = false;
+    }
+  });
+
+  cancelButton.addEventListener("click", resetForm);
+
+  list.addEventListener("click", async event => {
+    const editButton = event.target.closest("[data-edit-personal-draft]");
+    const deleteButton = event.target.closest("[data-delete-personal-draft]");
+
+    if (editButton) {
+      const draft = drafts.find(item => item.id === editButton.dataset.editPersonalDraft);
+      if (!draft) return;
+      editingId = draft.id;
+      input.value = draft.question;
+      saveButton.textContent = "Update question ♡";
+      cancelButton.classList.remove("hidden");
+      input.focus();
+      return;
+    }
+
+    if (deleteButton) {
+      const id = deleteButton.dataset.deletePersonalDraft;
+      if (!confirm("Delete this private question?")) return;
+      try {
+        await deleteDoc(doc(db, "personalQuestionDrafts", id));
+        if (editingId === id) resetForm();
+        toast("Private question deleted.");
+        await fetchDrafts();
+      } catch (error) {
+        console.error("DELETE PERSONAL QUESTION ERROR:", error);
+        toast("Couldn't delete that private question.");
+      }
+    }
+  });
+
+  try {
+    await fetchDrafts();
+  } catch (error) {
+    console.error("LOAD PERSONAL QUESTIONS ERROR:", error);
+    list.innerHTML = `<div class="mini-empty">Couldn't load your private questions. Check your Firestore rules.</div>`;
+  }
+}
+
+/* =========================================================
+   DASHBOARD
+========================================================= */
+
+/* =========================================================
+   POPULATE ALL FRIEND DROPDOWNS
+========================================================= */
+
+async function populateFriendDropdowns() {
+  if (!currentUser) return;
+
+  const selectIds = [
+    "questionFriendSelect",
+    "listFriendSelect",
+    "manageListFriendSelect"
+  ];
+
+  const selects = selectIds
+    .map(id => $(id))
+    .filter(Boolean);
+
+  if (!selects.length) return;
+
+  selects.forEach(select => {
+    select.innerHTML = `<option value="">Loading friends...</option>`;
+  });
+
+  try {
+    const friendsQuery = query(
+      collection(db, "friendships"),
+      where("users", "array-contains", currentUser.uid)
+    );
+
+    const snapshot = await getDocs(friendsQuery);
+    const friends = [];
+
+    snapshot.forEach(friendshipDoc => {
+      const data = friendshipDoc.data();
+
+      let friendUid = "";
+      let friendUsername = "";
+
+      if (data.user1Uid === currentUser.uid) {
+        friendUid = data.user2Uid || "";
+        friendUsername = data.user2Username || "";
+      } else if (data.user2Uid === currentUser.uid) {
+        friendUid = data.user1Uid || "";
+        friendUsername = data.user1Username || "";
+      } else {
+        friendUid =
+          (data.users || []).find(
+            uid => uid !== currentUser.uid
+          ) || "";
+      }
+
+      if (friendUid) {
+        friends.push({
+          uid: friendUid,
+          username: friendUsername || "Friend"
+        });
+      }
+    });
+
+    friends.sort((a, b) =>
+      a.username.localeCompare(b.username)
+    );
+
+    selects.forEach(select => {
+      // Preserve the dropdown's original first option.
+      const firstOption = select.options[0];
+      const placeholderText =
+        firstOption?.textContent || "Choose a friend...";
+
+      select.innerHTML = "";
+
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = placeholderText;
+      select.appendChild(placeholder);
+
+      friends.forEach(friend => {
+        const option = document.createElement("option");
+        option.value = friend.uid;
+        option.textContent = friend.username;
+        select.appendChild(option);
+      });
+
+      if (friends.length === 0) {
+        placeholder.textContent = "No accepted friends found";
+      }
+    });
+
+    console.log(
+      "FRIEND DROPDOWNS POPULATED:",
+      friends.length,
+      friends
+    );
+
+  } catch (error) {
+    console.error("POPULATE FRIEND DROPDOWNS ERROR:", error);
+
+    selects.forEach(select => {
+      select.innerHTML =
+        `<option value="">Couldn't load friends</option>`;
+    });
+
+    toast("Couldn't load your friends.");
+  }
+}
+
+
+async function loadDashboard() {
+
+  $("dashboardContent").innerHTML =
+    `<div class="loading-inline">
+      Loading your things… ✨
+    </div>`;
+
+  try {
+
+    console.log(
+      "Loading dashboard for UID:",
+      currentUser.uid
+    );
+
+    /* ---------- GAMES ---------- */
+
+    const gamesSnap =
+      await getDocs(
+        collection(db, "games")
+      );
+
+    console.log(
+      "ALL GAMES IN FIRESTORE:",
+      gamesSnap.docs.map(d => ({
+        id: d.id,
+        ...d.data()
+      }))
+    );
+
+    dashboardGames =
+      gamesSnap.docs
+        .map(d => ({
+          id: d.id,
+          ...d.data()
+        }))
+        .filter(
+          game =>
+            game.creatorId ===
+            currentUser.uid
+        );
+
+    console.log(
+      "MY GAMES:",
+      dashboardGames
+    );
+
+
+/* ---------- LISTS ---------- */
+
+const listsSnap = await getDocs(
+  collection(db, "lists")
+);
+
+const allLists = listsSnap.docs.map(d => ({
+  id: d.id,
+  ...d.data()
+}));
+
+// Lists I created
+dashboardLists = allLists.filter(
+  list => list.creatorId === currentUser.uid
+);
+
+// Lists other people shared with me
+dashboardSharedLists = allLists.filter(
+  list =>
+    list.sharedWithUid === currentUser.uid &&
+    list.creatorId !== currentUser.uid
+);
+
+
+    /* ---------- GROUPS ---------- */
+
+    const groupsSnap =
+      await getDocs(
+        collection(db, "listGroups")
+      );
+
+    dashboardGroups =
+      groupsSnap.docs
+        .map(d => ({
+          id: d.id,
+          ...d.data()
+        }))
+        .filter(
+          group =>
+            group.creatorId ===
+            currentUser.uid
+        );
+
+    /* ---------- SORT ---------- */
+
+    dashboardGames.sort(
+      (a, b) =>
+        (b.createdAt?.seconds || 0) -
+        (a.createdAt?.seconds || 0)
+    );
+
+    dashboardLists.sort(
+      (a, b) =>
+        (b.createdAt?.seconds || 0) -
+        (a.createdAt?.seconds || 0)
+    );
+
+    dashboardSharedLists.sort(
+  (a, b) =>
+    (b.createdAt?.seconds || 0) -
+    (a.createdAt?.seconds || 0)
+);
+
+    dashboardGroups.sort(
+      (a, b) =>
+        (a.title || "")
+          .localeCompare(
+            b.title || ""
+          )
+    );
+
+
+/* ---------- FRIEND QUESTIONS ---------- */
+
+const sentFriendQuestionsSnap = await getDocs(
+  query(
+    collection(db, "friendQuestions"),
+    where("fromUid", "==", currentUser.uid)
+  )
+);
+
+dashboardFriendQuestions = sentFriendQuestionsSnap.docs
+  .map(d => ({
+    id: d.id,
+    ...d.data()
+  }))
+  .sort(
+    (a, b) =>
+      (b.createdAt?.seconds || 0) -
+      (a.createdAt?.seconds || 0)
+  );
+
+/* ---------- RENDER DASHBOARD ---------- */
+
+await renderDashboard();
+
+populateGroupSelect();
+await populateFriendDropdowns();
+await loadIncomingFriendQuestions();
+await loadSentFriendQuestions();
+await loadPersonalQuestionDrafts();
+  } catch (error) {
+
+    console.error(
+      "DASHBOARD ERROR:",
+      error
+    );
+
+    $("dashboardContent").innerHTML = `
+      <div class="empty-state">
+        <span>🌧️</span>
+        <h3>Couldn't load your dashboard</h3>
+        <p>${escapeHtml(error.message)}</p>
+      </div>
+    `;
+  }
+}
+
+/* =========================================================
+   RESPONSE COUNT
+========================================================= */
+
+async function getResponseCount(gameId) {
+
+  try {
+
+    const snap =
+      await getDocs(
+        collection(
+          db,
+          "games",
+          gameId,
+          "responses"
+        )
+      );
+
+    return snap.size;
+
+  } catch {
+
+    return 0;
+  }
+}
+
+/* =========================================================
+   RENDER DASHBOARD
+========================================================= */
+
+async function renderDashboard() {
+
+  const content =
+    $("dashboardContent");
+
+
+ if (
+  !dashboardGames.length &&
+  !dashboardLists.length &&
+  !dashboardSharedLists.length &&
+  !dashboardGroups.length &&
+  !dashboardFriendQuestions.length
+) {
+
+    content.innerHTML = `
+      <div class="empty-state">
+        <span>🌷</span>
+        <h3>Nothing here yet</h3>
+        <p>
+          Create a question game or a list
+          and it'll show up here.
+        </p>
+      </div>
+    `;
+
+    return;
+  }
+
+  let html = "";
+
+  /* ---------- GAMES ---------- */
+
+  if (dashboardGames.length) {
+
+    html += `
+      <div class="dashboard-section">
+        <div class="section-label">
+          💭 QUESTION GAMES
+        </div>
+    `;
+
+    for (const game of dashboardGames) {
+
+      const count =
+        await getResponseCount(
+          game.id
+        );
+
+      html += `
+        <article class="dashboard-card">
+
+          <div class="dashboard-icon">
+            💭
+          </div>
+
+          <div class="dashboard-main">
+
+            <h3>
+              ${escapeHtml(
+                game.title ||
+                "Untitled questions"
+              )}
+            </h3>
+
+            <p>
+              ${game.questions?.length || 0}
+              questions ·
+              ${count}
+              saved response${count === 1 ? "" : "s"}
+            </p>
+
+          </div>
+
+          <div class="dashboard-actions">
+
+            <button
+              class="soft-button small"
+              data-action="results"
+              data-id="${game.id}"
+            >
+              View results
+            </button>
+
+            <button
+              class="soft-button small"
+              data-action="edit-game"
+              data-id="${game.id}"
+            >
+              Edit
+            </button>
+
+            <button
+              class="icon-button danger"
+              data-action="delete-game"
+              data-id="${game.id}"
+              aria-label="Delete game"
+            >
+              ×
+            </button>
+
+          </div>
+
+        </article>
+      `;
+    }
+
+    html += `</div>`;
+  }
+
+  
+
+  /* ---------- GROUPS ---------- */
+
+  if (dashboardGroups.length) {
+
+    html += `
+      <div class="dashboard-section">
+
+        <div class="section-label">
+          ☑️ LIST GROUPS
+        </div>
+    `;
+
+    for (const group of dashboardGroups) {
+
+      const lists =
+        dashboardLists.filter(
+          l =>
+            l.groupId === group.id
+        );
+
+      html += `
+        <div class="group-card">
+
+          <div class="group-heading">
+
+            <div>
+              <span class="group-icon">
+                📚
+              </span>
+
+              <h3>
+                ${escapeHtml(
+                  group.title
+                )}
+              </h3>
+            </div>
+
+            <button
+              class="icon-button danger"
+              data-action="delete-group"
+              data-id="${group.id}"
+              aria-label="Delete group"
+            >
+              ×
+            </button>
+
+          </div>
+
+          ${
+            lists.length
+              ? lists
+                  .map(renderDashboardList)
+                  .join("")
+              : `
+                <p class="mini-empty">
+                  No lists in this group yet.
+                </p>
+              `
+          }
+
+        </div>
+      `;
+    }
+
+    html += `</div>`;
+  }
+
+  /* ---------- UNGROUPED LISTS ---------- */
+
+  const ungrouped =
+    dashboardLists.filter(
+      l => !l.groupId
+    );
+
+  if (ungrouped.length) {
+
+    html += `
+      <div class="dashboard-section">
+
+        <div class="section-label">
+          ☑️ LISTS
+        </div>
+
+        ${ungrouped
+          .map(renderDashboardList)
+          .join("")}
+
+      </div>
+    `;
+  }
+
+  
+/* ---------- SHARED WITH ME ---------- */
+
+if (dashboardSharedLists.length) {
+  html += `
+    <div class="dashboard-section">
+      <div class="section-label">
+        ♡ SHARED WITH ME
+      </div>
+  `;
+
+  for (const list of dashboardSharedLists) {
+    html += `
+      <article class="dashboard-card compact">
+        <div class="dashboard-icon">☑️</div>
+
+        <div class="dashboard-main">
+          <h3>
+            ${escapeHtml(list.title || "Untitled list")}
+          </h3>
+
+          <p>
+            Shared by ${escapeHtml(list.creatorUsername || "a friend")}
+            · ${list.itemCount ?? 0} items
+            · ${escapeHtml(PERMISSIONS[list.permission] || PERMISSIONS.view)}
+          </p>
+        </div>
+
+        <div class="dashboard-actions">
+          <button
+            class="soft-button small"
+            data-action="open-list"
+            data-id="${list.id}"
+          >
+            Open
+          </button>
+        </div>
+      </article>
+    `;
+  }
+
+  html += `</div>`;
+}
+
+  content.innerHTML = html;
+
+  attachDashboardActions();
+}
+
+/* =========================================================
+   DASHBOARD LIST
+========================================================= */
+
+function renderDashboardList(list) {
+
+  const itemsCount =
+    list.itemCount ?? 0;
+
+  return `
+    <article class="dashboard-card compact">
+
+      <div class="dashboard-icon">
+        ☑️
+      </div>
+
+      <div class="dashboard-main">
+
+        <h3>
+          ${escapeHtml(
+            list.title ||
+            "Untitled list"
+          )}
+        </h3>
+
+        <p>
+          ${itemsCount}
+          item${itemsCount === 1 ? "" : "s"} ·
+          ${
+            PERMISSIONS[list.permission] ||
+            PERMISSIONS.view
+          }
+        </p>
+
+      </div>
+
+      <div class="dashboard-actions">
+
+        <button
+          class="soft-button small"
+          data-action="manage-list"
+          data-id="${list.id}"
+        >
+          Manage
+        </button>
+
+        <button
+          class="soft-button small"
+          data-action="open-list"
+          data-id="${list.id}"
+        >
+          Open
+        </button>
+
+        <button
+          class="icon-button danger"
+          data-action="delete-list"
+          data-id="${list.id}"
+          aria-label="Delete list"
+        >
+          ×
+        </button>
+
+      </div>
+
+    </article>
+  `;
+}
+
+/* =========================================================
+   DASHBOARD ACTIONS
+========================================================= */
+
+function attachDashboardActions() {
+
+  document
+    .querySelectorAll("[data-action]")
+    .forEach(button => {
+
+      button.addEventListener(
+        "click",
+        async () => {
+
+          const action =
+            button.dataset.action;
+
+          const id =
+            button.dataset.id;
+
+          if (action === "results")
+            await openResponses(id);
+
+          if (action === "edit-game")
+            await editGame(id);
+
+          if (action === "delete-game")
+            await deleteGame(id);
+
+          if (action === "manage-list")
+            await openListManager(id);
+
+          if (action === "open-list")
+            await openCreatorList(id);
+
+          if (action === "delete-list")
+            await deleteList(id);
+
+          if (action === "delete-group")
+            await deleteGroup(id);
+
+        }
+      );
+
+    });
+}
+
+/* =========================================================
+   DELETE GAME
+========================================================= */
+
+async function deleteGame(id) {
+
+  if (
+    !confirm(
+      "Delete this question game? Its saved responses will no longer be accessible."
+    )
+  ) {
+    return;
+  }
+
+  try {
+
+    await deleteDoc(
+      doc(db, "games", id)
+    );
+
+    toast(
+      "Question game deleted."
+    );
+
+    await loadDashboard();
+
+  } catch (e) {
+
+    console.error(e);
+
+    toast(
+      "Couldn't delete the game."
+    );
+  }
+}
+
+/* =========================================================
+   DELETE GROUP
+========================================================= */
+
+async function deleteGroup(id) {
+
+  const lists =
+    dashboardLists.filter(
+      l => l.groupId === id
+    );
+
+  if (
+    lists.length &&
+    !confirm(
+      "This group contains lists. Delete the group and leave those lists ungrouped?"
+    )
+  ) {
+    return;
+  }
+
+  try {
+
+    for (const list of lists) {
+
+      await updateDoc(
+        doc(
+          db,
+          "lists",
+          list.id
+        ),
+        {
+          groupId: null,
+          updatedAt:
+            serverTimestamp()
+        }
+      );
+    }
+
+    await deleteDoc(
+      doc(
+        db,
+        "listGroups",
+        id
+      )
+    );
+
+    toast(
+      "Group deleted."
+    );
+
+    await loadDashboard();
+
+  } catch (e) {
+
+    console.error(e);
+
+    toast(
+      "Couldn't delete the group."
+    );
+  }
+}
+
+/* =========================================================
+   DELETE LIST
+========================================================= */
+
+async function deleteList(id) {
+
+  if (!confirm("Delete this list?")) {
+    return;
+  }
+
+  try {
+
+    const itemsSnap =
+      await getDocs(
+        collection(
+          db,
+          "lists",
+          id,
+          "items"
+        )
+      );
+
+    await Promise.all(
+      itemsSnap.docs.map(
+        d => deleteDoc(d.ref)
+      )
+    );
+
+    await deleteDoc(
+      doc(
+        db,
+        "lists",
+        id
+      )
+    );
+
+    toast(
+      "List deleted."
+    );
+
+    await loadDashboard();
+
+  } catch (e) {
+
+    console.error(e);
+
+    toast(
+      "Couldn't delete the list."
+    );
+  }
+}
+
+/* =========================================================
+   GROUPS
+========================================================= */
+
+$("saveGroupButton")
+  .addEventListener(
+    "click",
+    async () => {
+
+      const title =
+        $("groupTitle")
+          .value
+          .trim();
+
+      if (!title) {
+        return toast(
+          "Give the group a title first."
+        );
+      }
+
+      try {
+
+        await addDoc(
+          collection(
+            db,
+            "listGroups"
+          ),
+          {
+            creatorId:
+              currentUser.uid,
+
+            title,
+
+            createdAt:
+              serverTimestamp(),
+
+            updatedAt:
+              serverTimestamp()
+          }
+        );
+
+        toast(
+          "Group created ✨"
+        );
+
+        showScreen(
+          "landingScreen"
+        );
+
+        await loadDashboard();
+
+      } catch (e) {
+
+        console.error(e);
+
+        toast(
+          "Couldn't create the group."
+        );
+      }
+    }
+  );
+
+/* =========================================================
+   QUESTION CREATOR
+========================================================= */
+
+function resetQuestionCreator() {
+
+  creatorQuestions = [];
+
+  editingQuestionId = null;
+
+  currentGameId = null;
+  currentGame = null;
+
+  $("gameTitle").value = "";
+
+  $("questionInput").value = "";
+
+  document
+    .querySelector(
+      'input[name="category"][value="very-light"]'
+    )
+    .checked = true;
+
+  document
+    .querySelector(
+      'input[name="answerType"][value="written"]'
+    )
+    .checked = true;
+
+  $("allowCustomAnswer")
+    .checked = false;
+
+  $("gameCreatedArea")
+    .classList
+    .add("hidden");
+
+  $("gameLink").value = "";
+
+  $("questionList")
+    .innerHTML = "";
+
+  $("questionEmpty")
+    .classList
+    .remove("hidden");
+
+  $("cancelEditQuestionButton")
+    .classList
+    .add("hidden");
+
+  $("optionsList")
+    .innerHTML = "";
+
+  renderOptionsEditor();
+}
+
+/* =========================================================
+   START QUESTION CREATOR
+========================================================= */
+
+async function startQuestionCreator(
+  existingGame = null
+) {
+
+  resetQuestionCreator();
+
+  if (existingGame) {
+
+    $("gameTitle").value =
+      existingGame.title || "";
+
+    creatorQuestions =
+      structuredClone(
+        existingGame.questions || []
+      );
+
+    currentGameId =
+      existingGame.id;
+
+    renderQuestionList();
+
+    /*
+     * Existing game already has questions,
+     * so the game-ready section can be shown.
+     *
+     * This does NOT create a new game.
+     */
+    if (creatorQuestions.length > 0) {
+
+      $("gameLink").value =
+        makeGameLink(
+          currentGameId
+        );
+
+      $("gameCreatedArea")
+        .classList
+        .remove("hidden");
+    }
+  }
+
+  showScreen(
+    "questionCreatorScreen"
+  );
+}
