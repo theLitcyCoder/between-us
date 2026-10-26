@@ -30,24 +30,17 @@ button {
 }
 
 .topbar {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-
-  width: 100%;
-  min-width: 0;
-  height: 70px;
-  box-sizing: border-box;
-
-  /* Reserve room on the right for the theme toggle */
-  padding: 0 150px 0 max(20px, calc((100vw - 1050px) / 2));
-
-  background: var(--header-bg, var(--card-bg));
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 max(20px, calc((100vw - 1050px)/2));
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: rgba(255, 255, 255, .82);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid #f1e7ee
 }
 
 .brand {
@@ -59,10 +52,7 @@ button {
     align-items: center;
     font-family: Quicksand, sans-serif;
     font-weight: 700;
-    font-size: 18px;
-  flex-shrink: 0;
-  min-width: 0;
-  white-space: nowrap;
+    font-size: 18px
 }
 
 .brand-mark {
@@ -74,30 +64,6 @@ button {
     background: #ffe6ef;
     color: #d85d85;
     font-size: 20px
-}
-
-.top-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-
-  flex: 0 1 auto;
-  min-width: 0;
-  margin-left: auto;
-}
-
-#usernameDisplay {
-  max-width: 150px;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-#logoutButton {
-  flex-shrink: 0;
-  white-space: nowrap;
 }
 
 .app-shell {
@@ -1068,25 +1034,6 @@ button {
     animation-delay: 6s
 }
 
-
-/* Keep toast notifications above the fixed footer */
-
-.toast,
-.toast-container,
-#toast,
-#toastContainer,
-#toast-container {
-  z-index: 2000 !important;
-  bottom: 90px !important;
-}
-
-/* Keep toast messages visible and readable */
-.toast,
-#toast {
-  max-width: calc(100vw - 32px);
-  box-sizing: border-box;
-}
-
 .toast {
     position: fixed;
     left: 50%;
@@ -1181,24 +1128,8 @@ button {
     }
 
     .topbar {
-        gap: 8px;
-    padding-left: 12px;
-    padding-right: 130px;
+        padding: 0 12px
     }
-
-      .top-actions {
-    gap: 5px;
-  }
-
-  #usernameDisplay {
-    max-width: 90px;
-  }
-
-  .theme-toggle-wrap {
-    top: 19px;
-    right: 10px;
-    gap: 4px;
-  }
 
     .creation-grid,
     .category-grid,
@@ -1271,100 +1202,6 @@ button {
     .inline-add {
         flex-direction: column
     }
-}
-
-@media (max-width: 480px) {
-  .topbar {
-    height: 64px;
-    gap: 5px;
-    padding-left: 8px;
-    padding-right: 112px;
-  }
-
-  .brand {
-    gap: 5px;
-    font-size: 13px;
-  }
-
-  .brand-mark {
-    width: 26px;
-    height: 26px;
-    font-size: 15px;
-  }
-
-  .top-actions {
-    gap: 4px;
-  }
-
-  #usernameDisplay {
-    max-width: 65px;
-    padding: 7px 5px;
-    font-size: 11px;
-  }
-
-  #logoutButton {
-    padding: 7px 6px;
-    font-size: 10px;
-  }
-
-  #backButton {
-    padding: 7px 5px;
-    font-size: 10px;
-  }
-
-  .theme-toggle-wrap {
-    top: 17px;
-    right: 6px;
-    gap: 3px;
-    padding: 3px;
-  }
-
-  .theme-icon {
-    font-size: 11px;
-  }
-
-  .theme-toggle {
-    width: 32px;
-    flex-shrink: 0;
-  }
-
-  body.dark-mode .theme-toggle-knob {
-    transform: translateX(8px);
-  }
-}
-
-/* Extra-small phones */
-@media (max-width: 360px) {
-  .topbar {
-    padding-left: 6px;
-    padding-right: 104px;
-    gap: 3px;
-  }
-
-  .brand {
-    font-size: 11px;
-    gap: 3px;
-  }
-
-  .brand-mark {
-    width: 23px;
-    height: 23px;
-  }
-
-  #usernameDisplay {
-    max-width: 48px;
-    font-size: 10px;
-  }
-
-  #logoutButton {
-    padding: 6px 4px;
-    font-size: 9px;
-  }
-
-  .theme-toggle-wrap {
-    right: 4px;
-    gap: 2px;
-  }
 }
 
 /* ===============================
@@ -1545,15 +1382,13 @@ button {
 ========================================================= */
 
 .theme-toggle-wrap {
-  position: fixed !important;
+  position: fixed;
   top: 18px;
   right: 20px;
   z-index: 9999;
-  left: auto;
 
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 7px;
 
   padding: 7px 10px;
@@ -1563,8 +1398,6 @@ button {
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.10);
 
   backdrop-filter: blur(10px);
-  box-sizing: border-box;
-  max-width: 125px;
 }
 
 .theme-icon {
@@ -1610,244 +1443,86 @@ button {
 }
 
 
-
 /* =========================================================
-   BETWEEN US — WARM BURGUNDY & AMBER DARK MODE
+   BETWEEN US — DARK MODE
+   Based on the Dark Reader palette
 ========================================================= */
 
 body.dark-mode {
-  --dark-bg: #1b1518;
-  --dark-header: #1b1719;
-  --dark-card: #1b1a1a;
-  --dark-text: #e4ded9;
-  --dark-muted: #a69a91;
-  --dark-pink: #d96b91;
-  --dark-pink-deep: #49001b;
-  --dark-border: rgba(177, 57, 105, 0.38);
+  background: #181a1b !important;
+  color: #e8e6e3 !important;
 
-  background:
-    radial-gradient(
-      ellipse at 0% 42%,
-      rgba(91, 0, 35, 0.62),
-      transparent 58%
-    ),
-    radial-gradient(
-      ellipse at 100% 35%,
-      rgba(83, 49, 0, 0.48),
-      transparent 58%
-    ),
-    var(--dark-bg) !important;
-
-  background-attachment: fixed !important;
-  color: var(--dark-text) !important;
   color-scheme: dark;
 }
 
-/* Header */
+
+/* ---------------------------------------------------------
+   TOP BAR
+--------------------------------------------------------- */
+
 body.dark-mode .topbar {
-  background: rgba(27, 23, 25, 0.96) !important;
-  border-bottom: 1px solid rgba(177, 57, 105, 0.48) !important;
-  color: var(--dark-text) !important;
+  background: rgba(24, 26, 27, 0.82) !important;
+  border-bottom-color: #482a3f !important;
+  color: #bcb7ae !important;
 }
 
-body.dark-mode .brand {
-  color: #c7c0ba !important;
-}
 
-body.dark-mode .brand-mark {
-  background: #49001b !important;
-  color: #e66b97 !important;
-}
+/* ---------------------------------------------------------
+   APP SHELL
+--------------------------------------------------------- */
 
-/* Keep the shell transparent so the gradient shows */
 body.dark-mode .app-shell {
-  background: transparent !important;
-  color: var(--dark-text) !important;
+  background: #181a1b !important;
+  color: #e8e6e3 !important;
 }
 
-/* Main cards and panels */
+
+/* ---------------------------------------------------------
+   CARDS / PANELS
+--------------------------------------------------------- */
+
 body.dark-mode .card,
 body.dark-mode .creator-card,
 body.dark-mode .game-card,
 body.dark-mode .list-card,
 body.dark-mode .question-card,
-body.dark-mode .response-card,
-body.dark-mode .creation-card,
-body.dark-mode .dashboard-card,
-body.dark-mode .group-card,
-body.dark-mode .finish-card,
-body.dark-mode .friend-question-card {
-  background: var(--dark-card) !important;
-  color: var(--dark-text) !important;
-  border-color: var(--dark-border) !important;
-  box-shadow: none;
+body.dark-mode .response-card {
+  background: #1b1d1e !important;
+  color: #e8e6e3 !important;
+  border-color: #482a3f !important;
 }
 
-/* Card text */
-body.dark-mode h1,
-body.dark-mode h2,
-body.dark-mode h3,
-body.dark-mode .creation-card strong,
-body.dark-mode .dashboard-main h3,
-body.dark-mode .group-heading h3,
-body.dark-mode .player-card h1,
-body.dark-mode .list-player-card h1 {
-  color: var(--dark-text) !important;
-}
 
-body.dark-mode p,
-body.dark-mode .hero-copy,
-body.dark-mode .creation-card small,
-body.dark-mode .dashboard-main p,
-body.dark-mode .muted,
-body.dark-mode .choice-hint,
-body.dark-mode .page-heading p:not(.eyebrow) {
-  color: var(--dark-muted) !important;
-}
+/* ---------------------------------------------------------
+   INPUTS
+--------------------------------------------------------- */
 
-body.dark-mode .eyebrow,
-body.dark-mode .section-label,
-body.dark-mode .accent,
-body.dark-mode .pink,
-body.dark-mode .hero h1 span {
-  color: var(--dark-pink) !important;
-}
-
-/* Inputs */
 body.dark-mode input,
 body.dark-mode textarea,
-body.dark-mode select,
-body.dark-mode .text-input,
-body.dark-mode .share-box input {
-  background: #242022 !important;
-  color: #e9dce0 !important;
-  border-color: #56303f !important;
+body.dark-mode select {
+  background: #242728 !important;
+  color: #e9d3e0 !important;
+  border-color: #736b5e !important;
 }
 
 body.dark-mode input::placeholder,
 body.dark-mode textarea::placeholder {
-  color: #a69a91 !important;
+  color: #afa89e !important;
 }
 
-body.dark-mode label,
-body.dark-mode .creator-builder label,
-body.dark-mode .card > label {
-  color: #d6c9ce !important;
-}
 
-/* Buttons */
+/* ---------------------------------------------------------
+   BUTTONS
+--------------------------------------------------------- */
+
 body.dark-mode .soft-button {
-  background: var(--dark-pink-deep) !important;
-  color: var(--dark-pink) !important;
-  border-color: transparent !important;
+  background: #272a2c !important;
+  color: #e9d3e0 !important;
+  border-color: #71695d !important;
 }
 
 body.dark-mode .soft-button:hover {
-  background: #650025 !important;
-  border-color: var(--dark-pink) !important;
-}
-
-body.dark-mode .primary-button {
-  background: #bd527a !important;
-  color: #fff !important;
-}
-
-body.dark-mode .ghost,
-body.dark-mode .icon-button {
-  background: #292326 !important;
-  color: #d6c9ce !important;
-  border-color: #56303f !important;
-}
-
-/* Selection controls */
-body.dark-mode .category-choice span,
-body.dark-mode .type-toggle span,
-body.dark-mode .permission-choice span,
-body.dark-mode .player-choice span {
-  background: #242022 !important;
-  color: var(--dark-text) !important;
-  border-color: #56303f !important;
-}
-
-body.dark-mode .category-choice:has(input:checked) span,
-body.dark-mode .type-toggle label:has(input:checked) span,
-body.dark-mode .permission-choice:has(input:checked) span,
-body.dark-mode .player-choice input:checked + span {
-  background: #3a202b !important;
-  border-color: var(--dark-pink) !important;
-}
-
-body.dark-mode input[type="checkbox"],
-body.dark-mode input[type="radio"] {
-  accent-color: var(--dark-pink);
-}
-
-/* List items */
-body.dark-mode .shared-item,
-body.dark-mode .manage-item,
-body.dark-mode .builder-question,
-body.dark-mode .options-editor,
-body.dark-mode .created-share {
-  background: #211d20 !important;
-  color: var(--dark-text) !important;
-  border-color: var(--dark-border) !important;
-}
-
-body.dark-mode .manage-item-text {
-  color: var(--dark-text) !important;
-}
-
-/* Special areas */
-body.dark-mode .game-ready-message,
-body.dark-mode .ai-result,
-body.dark-mode .sensitive-buffer,
-body.dark-mode .empty-state,
-body.dark-mode .question-empty {
-  background: #242022 !important;
-  color: #d6c9ce !important;
-  border-color: var(--dark-border) !important;
-}
-
-body.dark-mode a {
-  color: var(--dark-pink) !important;
-}
-
-/* Theme toggle */
-body.dark-mode .theme-toggle-wrap {
-  background: rgba(27, 23, 25, 0.95) !important;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
-}
-
-body.dark-mode .theme-toggle {
-  background: #493643 !important;
-}
-
-body.dark-mode .theme-toggle-knob {
-  background: #e8e6e3 !important;
-  transform: translateX(22px);
-}
-
-/* Footer */
-body.dark-mode .app-footer {
-  background: rgba(27, 23, 25, 0.97) !important;
-  color: var(--dark-muted) !important;
-  border-top-color: var(--dark-border) !important;
-}
-
-body.dark-mode .app-footer p {
-  color: #d8c6e8 !important;
-}
-
-/* Username */
-body.dark-mode .username-display {
-  background: #49001b !important;
-  color: var(--dark-pink) !important;
-}
-
-/* Keep loading and empty states readable */
-body.dark-mode .loading-inline,
-body.dark-mode .mini-empty {
-  color: var(--dark-muted) !important;
+  background: #2e3234 !important;
 }
 
 
@@ -2046,3 +1721,355 @@ body {
   padding-bottom: 76px;
 }
 
+/* =========================================================
+   FRIEND QUESTION CHAT + HIGH-CONTRAST DARK MODE
+========================================================= */
+.bu-question-time { font-size: .82rem; margin: .25rem 0 .75rem; opacity: .9; }
+.bu-chat { margin-top: 1rem; padding: 1rem; border: 1px solid #d9b7c9; border-radius: 14px; background: rgba(233, 211, 224, .18); }
+.bu-chat h4 { margin: 0 0 .75rem; }
+.bu-chat-messages { display: flex; flex-direction: column; gap: .65rem; max-height: 320px; overflow-y: auto; padding: .25rem; }
+.bu-chat-message { max-width: 92%; padding: .7rem .85rem; border-radius: 12px; background: #fff; color: #25212a; border: 1px solid #d8cbd2; overflow-wrap: anywhere; }
+.bu-chat-message.mine { align-self: flex-end; background: #f5e5ef; }
+.bu-chat-message.theirs { align-self: flex-start; }
+.bu-chat-message p { margin: .4rem 0 0; white-space: pre-wrap; }
+.bu-chat-message-meta { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: space-between; font-size: .78rem; }
+.bu-chat-message-meta time { opacity: .8; }
+.bu-chat-compose { display: flex; gap: .5rem; align-items: end; }
+.bu-chat-compose textarea { flex: 1; min-width: 0; }
+.bu-chat-label, .bu-chat-poll-form label { display: block; margin: .55rem 0 .25rem; font-weight: 650; }
+.bu-poll-details { margin-top: .75rem; }
+.bu-poll-details summary { cursor: pointer; font-weight: 650; padding: .4rem 0; }
+.bu-chat-poll-form { display: grid; gap: .45rem; padding-top: .5rem; }
+.bu-chat-poll { margin-top: .45rem; }
+.bu-chat-poll ul { margin: .4rem 0; padding-left: 1.25rem; }
+.bu-chat-poll li { margin: .2rem 0; }
+
+body.dark-mode .bu-chat { background: #202326 !important; border-color: #77506a !important; color: #f5f1f5 !important; }
+body.dark-mode .bu-chat h4,
+body.dark-mode .bu-chat label,
+body.dark-mode .bu-chat summary,
+body.dark-mode .bu-chat .muted,
+body.dark-mode .bu-question-time { color: #f0eaf0 !important; opacity: 1; }
+body.dark-mode .bu-chat-message { background: #292c30 !important; color: #f5f5f5 !important; border-color: #66606a !important; }
+body.dark-mode .bu-chat-message.mine { background: #452b40 !important; color: #fff5fb !important; border-color: #b978a0 !important; }
+body.dark-mode .bu-chat-message-meta time { color: #e1d5e0 !important; opacity: 1; }
+body.dark-mode .bu-chat-poll small { color: #e8dfe7 !important; }
+body.dark-mode .friend-question-card,
+body.dark-mode .friend-inbox-list,
+body.dark-mode .friend-inbox details { color: #f4f0f4 !important; }
+body.dark-mode .muted { color: #d2cbd4 !important; }
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder { color: #d0c6d0 !important; opacity: 1; }
+@media (max-width: 560px) { .bu-chat-compose { flex-direction: column; align-items: stretch; } .bu-chat-message { max-width: 100%; } }
+
+.bu-poll-vote-options { display: grid; gap: .4rem; margin: .6rem 0; }
+.bu-poll-vote { display: flex; justify-content: space-between; gap: .7rem; text-align: left; border: 1px solid #cbb8c4; border-radius: 9px; padding: .55rem .7rem; background: #fff; color: #28222a; cursor: pointer; }
+.bu-poll-vote.selected { border-color: #a33c78; box-shadow: inset 0 0 0 1px #a33c78; }
+body.dark-mode .bu-poll-vote { background: #24272b !important; color: #f7f1f7 !important; border-color: #766b78 !important; }
+body.dark-mode .bu-poll-vote.selected { border-color: #e18ab7 !important; box-shadow: inset 0 0 0 1px #e18ab7; }
+
+
+/* =========================================================
+   BETWEEN US — CLEARER LIGHT-MODE CHAT COLORS + TOGGLE UX
+========================================================= */
+body:not(.dark-mode) .bu-chat {
+  background: #fff8fb !important;
+  color: #352531 !important;
+  border-color: #d9b4c7 !important;
+  box-shadow: 0 8px 22px rgba(111, 52, 83, .07);
+}
+body:not(.dark-mode) .bu-chat h4,
+body:not(.dark-mode) .bu-chat label,
+body:not(.dark-mode) .bu-chat summary,
+body:not(.dark-mode) .bu-chat .muted,
+body:not(.dark-mode) .bu-question-time {
+  color: #59364b !important;
+  opacity: 1;
+}
+body:not(.dark-mode) .bu-chat-message {
+  background: #ffffff !important;
+  color: #30252d !important;
+  border: 1px solid #e0cbd6 !important;
+  box-shadow: 0 2px 6px rgba(91, 47, 70, .05);
+}
+body:not(.dark-mode) .bu-chat-message.mine {
+  background: #f5dce8 !important;
+  color: #382233 !important;
+  border-color: #d9a9c1 !important;
+}
+body:not(.dark-mode) .bu-chat-message-meta,
+body:not(.dark-mode) .bu-chat-message-meta time {
+  color: #684d60 !important;
+  opacity: 1;
+}
+body:not(.dark-mode) .bu-chat-poll small {
+  color: #60485a !important;
+}
+body:not(.dark-mode) .bu-poll-vote {
+  background: #fff !important;
+  color: #30252d !important;
+  border-color: #d8c0ce !important;
+}
+body:not(.dark-mode) .bu-poll-vote:hover {
+  background: #fff3f8 !important;
+  border-color: #b56b91 !important;
+}
+body:not(.dark-mode) .bu-poll-vote.selected {
+  background: #f7e3ed !important;
+  color: #382233 !important;
+  border-color: #a33c78 !important;
+}
+.theme-toggle {
+  flex: 0 0 auto;
+  touch-action: manipulation;
+}
+.theme-toggle:focus-visible {
+  outline: 3px solid #a33c78;
+  outline-offset: 3px;
+}
+.theme-toggle:hover {
+  filter: brightness(.97);
+}
+body.dark-mode .theme-toggle:focus-visible {
+  outline-color: #f0a9cc;
+}
+
+/* =========================================================
+   CHAT READABILITY OVERRIDE — PINK LIGHT MODE / GRAY DARK MODE
+   This block intentionally comes last so it wins over older rules.
+========================================================= */
+
+/* LIGHT MODE: pink chat surfaces with clearly black text. */
+body:not(.dark-mode) .bu-chat,
+body:not(.dark-mode) .bu-chat-message,
+body:not(.dark-mode) .bu-chat-message.theirs,
+body:not(.dark-mode) .bu-chat-poll,
+body:not(.dark-mode) .bu-poll-details,
+body:not(.dark-mode) .friend-question-card {
+  background-color: #f9dce9 !important;
+  border-color: #d99ab8 !important;
+  color: #000000 !important;
+}
+
+body:not(.dark-mode) .bu-chat h4,
+body:not(.dark-mode) .bu-chat p,
+body:not(.dark-mode) .bu-chat label,
+body:not(.dark-mode) .bu-chat summary,
+body:not(.dark-mode) .bu-chat strong,
+body:not(.dark-mode) .bu-chat span,
+body:not(.dark-mode) .bu-chat li,
+body:not(.dark-mode) .bu-chat div,
+body:not(.dark-mode) .bu-chat time,
+body:not(.dark-mode) .bu-chat small,
+body:not(.dark-mode) .bu-chat-message,
+body:not(.dark-mode) .bu-chat-message p,
+body:not(.dark-mode) .bu-chat-message strong,
+body:not(.dark-mode) .bu-chat-message span,
+body:not(.dark-mode) .bu-chat-message-meta,
+body:not(.dark-mode) .bu-chat-message-meta time,
+body:not(.dark-mode) .bu-chat-poll *,
+body:not(.dark-mode) .bu-poll-details *,
+body:not(.dark-mode) .bu-poll-vote,
+body:not(.dark-mode) .bu-poll-vote span,
+body:not(.dark-mode) .bu-question-time,
+body:not(.dark-mode) .friend-question-card * {
+  color: #000000 !important;
+  opacity: 1 !important;
+}
+
+body:not(.dark-mode) .bu-chat-message.mine {
+  background-color: #f2c5da !important;
+  border-color: #c978a0 !important;
+  color: #000000 !important;
+}
+
+body:not(.dark-mode) .bu-chat-compose textarea,
+body:not(.dark-mode) .bu-chat-poll-form input,
+body:not(.dark-mode) .bu-chat-poll-form textarea,
+body:not(.dark-mode) .bu-chat-poll-form select {
+  background-color: #fff0f6 !important;
+  color: #000000 !important;
+  border-color: #c978a0 !important;
+}
+
+body:not(.dark-mode) .bu-chat-compose textarea::placeholder,
+body:not(.dark-mode) .bu-chat-poll-form input::placeholder,
+body:not(.dark-mode) .bu-chat-poll-form textarea::placeholder {
+  color: #403039 !important;
+  opacity: 1 !important;
+}
+
+body:not(.dark-mode) .bu-poll-vote {
+  background-color: #fff0f6 !important;
+  border-color: #d99ab8 !important;
+  color: #000000 !important;
+}
+body:not(.dark-mode) .bu-poll-vote.selected {
+  background-color: #eeb4d0 !important;
+  border-color: #a84778 !important;
+  color: #000000 !important;
+}
+
+/* DARK MODE: keep dark surfaces and use readable medium-light gray text. */
+body.dark-mode .bu-chat,
+body.dark-mode .bu-chat h4,
+body.dark-mode .bu-chat p,
+body.dark-mode .bu-chat label,
+body.dark-mode .bu-chat summary,
+body.dark-mode .bu-chat strong,
+body.dark-mode .bu-chat span,
+body.dark-mode .bu-chat li,
+body.dark-mode .bu-chat div,
+body.dark-mode .bu-chat time,
+body.dark-mode .bu-chat small,
+body.dark-mode .bu-chat-message,
+body.dark-mode .bu-chat-message p,
+body.dark-mode .bu-chat-message strong,
+body.dark-mode .bu-chat-message span,
+body.dark-mode .bu-chat-message-meta,
+body.dark-mode .bu-chat-message-meta time,
+body.dark-mode .bu-chat-poll *,
+body.dark-mode .bu-poll-details *,
+body.dark-mode .bu-poll-vote,
+body.dark-mode .bu-poll-vote span,
+body.dark-mode .bu-question-time,
+body.dark-mode .friend-question-card * {
+  color: #c7c7cc !important;
+  opacity: 1 !important;
+}
+
+body.dark-mode .bu-chat {
+  background-color: #202126 !important;
+  border-color: #5b5360 !important;
+}
+body.dark-mode .bu-chat-message,
+body.dark-mode .bu-chat-message.theirs,
+body.dark-mode .bu-chat-poll,
+body.dark-mode .bu-poll-details,
+body.dark-mode .friend-question-card {
+  background-color: #292a30 !important;
+  border-color: #5b5360 !important;
+}
+body.dark-mode .bu-chat-message.mine {
+  background-color: #38313a !important;
+  border-color: #756174 !important;
+}
+body.dark-mode .bu-chat-compose textarea,
+body.dark-mode .bu-chat-poll-form input,
+body.dark-mode .bu-chat-poll-form textarea,
+body.dark-mode .bu-chat-poll-form select {
+  background-color: #24252b !important;
+  color: #c7c7cc !important;
+  border-color: #68616d !important;
+}
+body.dark-mode .bu-chat-compose textarea::placeholder,
+body.dark-mode .bu-chat-poll-form input::placeholder,
+body.dark-mode .bu-chat-poll-form textarea::placeholder {
+  color: #a9a9b1 !important;
+  opacity: 1 !important;
+}
+body.dark-mode .bu-poll-vote {
+  background-color: #303037 !important;
+  border-color: #68616d !important;
+  color: #c7c7cc !important;
+}
+body.dark-mode .bu-poll-vote.selected {
+  background-color: #45404a !important;
+  border-color: #96859a !important;
+  color: #dedee2 !important;
+}
+
+/* =========================================================
+   DASHBOARD DARK-MODE FIX
+   Keep My Stuff cards, empty states, and dashboard create
+   actions on a black/dark surface with readable gray text.
+========================================================= */
+body.dark-mode .dashboard-section,
+body.dark-mode .dashboard-card,
+body.dark-mode .group-card,
+body.dark-mode .group-card .dashboard-card,
+body.dark-mode .empty-state,
+body.dark-mode .mini-empty,
+body.dark-mode .question-empty,
+body.dark-mode #incomingFriendQuestions,
+body.dark-mode .friend-inbox,
+body.dark-mode .friend-inbox-list:empty {
+  background: #09090b !important;
+  color: #c7c7cc !important;
+  border-color: #34343a !important;
+}
+
+body.dark-mode .dashboard-card,
+body.dark-mode .group-card .dashboard-card {
+  border: 1px solid #34343a !important;
+  border-radius: 18px !important;
+}
+
+body.dark-mode .dashboard-card h1,
+body.dark-mode .dashboard-card h2,
+body.dark-mode .dashboard-card h3,
+body.dark-mode .dashboard-card p,
+body.dark-mode .dashboard-card span,
+body.dark-mode .dashboard-card small,
+body.dark-mode .dashboard-main,
+body.dark-mode .dashboard-main h3,
+body.dark-mode .dashboard-main p,
+body.dark-mode .dashboard-icon,
+body.dark-mode .section-label,
+body.dark-mode .group-heading,
+body.dark-mode .group-heading h3,
+body.dark-mode .empty-state h3,
+body.dark-mode .empty-state p,
+body.dark-mode .empty-state span,
+body.dark-mode .mini-empty,
+body.dark-mode .question-empty,
+body.dark-mode #incomingFriendQuestions summary,
+body.dark-mode #incomingFriendQuestions summary h2,
+body.dark-mode #incomingFriendQuestions summary p,
+body.dark-mode #incomingFriendQuestions .friend-question-count {
+  color: #c7c7cc !important;
+  opacity: 1 !important;
+}
+
+/* Dashboard Create Question / Create List actions */
+body.dark-mode #createQuestionButton,
+body.dark-mode #createListButton,
+body.dark-mode #createQuestionGameButton,
+body.dark-mode [data-action="create-question"],
+body.dark-mode [data-action="create-list"],
+body.dark-mode .create-question-button,
+body.dark-mode .create-list-button,
+body.dark-mode .dashboard-create-button,
+body.dark-mode .dashboard-actions .soft-button,
+body.dark-mode .dashboard-card .soft-button {
+  background: #09090b !important;
+  color: #c7c7cc !important;
+  border: 1px solid #45454d !important;
+  box-shadow: none !important;
+}
+
+body.dark-mode #createQuestionButton:hover,
+body.dark-mode #createListButton:hover,
+body.dark-mode #createQuestionGameButton:hover,
+body.dark-mode [data-action="create-question"]:hover,
+body.dark-mode [data-action="create-list"]:hover,
+body.dark-mode .create-question-button:hover,
+body.dark-mode .create-list-button:hover,
+body.dark-mode .dashboard-create-button:hover,
+body.dark-mode .dashboard-actions .soft-button:hover,
+body.dark-mode .dashboard-card .soft-button:hover {
+  background: #202026 !important;
+  color: #e0e0e4 !important;
+  border-color: #696974 !important;
+}
+
+/* Empty Questions from Friends state stays dark with legible gray text. */
+body.dark-mode #incomingFriendQuestions .empty-state,
+body.dark-mode #incomingFriendQuestions .mini-empty,
+body.dark-mode #incomingFriendQuestions .question-empty,
+body.dark-mode #incomingFriendQuestions .friend-inbox-list > p,
+body.dark-mode #incomingFriendQuestions .friend-inbox-list > div:only-child {
+  background: #09090b !important;
+  color: #c7c7cc !important;
+  border-color: #34343a !important;
+}
