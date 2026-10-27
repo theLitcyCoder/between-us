@@ -9,21 +9,34 @@ import {
 } from "./firebase.js";
 
 import {
-collection,
-doc,
-addDoc,
-setDoc,
-getDoc,
-getDocs,
-onSnapshot,
-updateDoc,
-deleteDoc,
-query,
-where,
-orderBy,
-limit,
-serverTimestamp
+  collection,
+  doc,
+  addDoc,
+  setDoc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
+  limit,
+  serverTimestamp,
+  onSnapshot,
+  arrayUnion
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+
+
+import {
+  getMessaging,
+  getToken,
+  onMessage,
+  isSupported
+} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-messaging.js";
+
+
+const VAPID_PUBLIC_KEY = "BD0hun2iz3fm_jpRNSsyErbRZ8F2w2BrCyQPMWJMgMtNnz1z9HUgKa3SmfhW4tdy6Xxg5rz4x9TQcinzZJs0OWE";
+
 
 const AI_WORKER_URL =
   "https://between-us-ai.newoshadow21.workers.dev";
@@ -86,6 +99,316 @@ async function askAI({
   } catch (error) {
     console.error("AI error:", error);
     throw error;
+  }
+}
+
+
+/* =========================================================
+   BETWEEN US: BROWSER PUSH NOTIFICATIONS
+========================================================= */
+
+async function getBrowserMessagingToken() {
+  if (!("serviceWorker" in navigator)) {
+    throw new Error(
+      "This browser does not support service workers."
+    );
+  }
+
+  if (!(await isSupported())) {
+    throw new Error(
+      "Firebase Messaging is not supported in this browser."
+    );
+  }
+
+  if (Notification.permission === "denied") {
+    throw new Error(
+      "Notifications are blocked in your browser settings."
+    );
+  }
+
+  const permission = await Notification.requestPermission();
+
+  if (permission !== "granted") {
+    return null;
+  }
+
+  const serviceWorkerRegistration =
+    await navigator.serviceWorker.register(
+      "/firebase-messaging-sw.js"
+    );
+
+  const messaging = getMessaging();
+
+  const token = await getToken(messaging, {
+    vapidKey: VAPID_PUBLIC_KEY,
+    serviceWorkerRegistration
+  });
+
+  if (!token) {
+    throw new Error(
+      "Firebase could not obtain a notification token."
+    );
+  }
+
+  return token;
+}
+
+
+/* =========================================================
+   BETWEEN US: IN-APP NOTIFICATIONS + BROWSER ALERTS
+========================================================= */
+
+let appNotifications = [];
+let appNotificationsUnsubscribe = null;
+let appNotificationsUid = null;
+let appNotificationsReady = false;
+let appNotificationPanel = null;
+let foregroundMessagingBound = false;
+
+async function createAppNotification(recipientUid, details = {}) {
+  if (!currentUser?.uid || !recipientUid || recipientUid === currentUser.uid) return false;
+  try {
+    await addDoc(collection(db, "notifications"), {
+      recipientUid,
+      senderUid: currentUser.uid,
+      senderUsername: username || "A friend",
+      type: details.type || "general",
+      title: details.title || "New activity in Between Us",
+      message: details.message || "You have a new update.",
+      read: false,
+      ...(details.friendRequestId ? { friendRequestId: details.friendRequestId } : {}),
+      ...(details.questionId ? { questionId: details.questionId } : {}),
+      ...(details.listId ? { listId: details.listId } : {}),
+      ...(details.listTitle ? { listTitle: details.listTitle } : {}),
+      ...(details.targetSection ? { targetSection: details.targetSection } : {}),
+      createdAt: serverTimestamp()
+    });
+    return true;
+  } catch (error) {
+    // The primary action has already succeeded; notification failure must not undo it.
+    console.error("CREATE APP NOTIFICATION ERROR:", error);
+    return false;
+  }
+}
+
+async function notifySharedListChange(action, itemText = "") {
+  if (!currentUser?.uid || !currentList || !currentListId) return;
+  const isCreator = currentList.creatorId === currentUser.uid;
+  const recipientUid = isCreator ? currentList.sharedWithUid : currentList.creatorId;
+  if (!recipientUid || recipientUid === currentUser.uid) return;
+  const listTitle = currentList.title || "Shared list";
+  const itemDescription = itemText ? ` “${itemText.slice(0, 90)}”` : "";
+  await createAppNotification(recipientUid, {
+    type: "shared_list_update",
+    title: "A shared list was updated",
+    message: `${username || "Your friend"} ${action}${itemDescription} in “${listTitle}”.`,
+    listId: currentListId,
+    listTitle,
+    targetSection: "shared-list"
+  });
+}
+
+function ensureAppNotificationPanel(userActivity, button) {
+  if (!userActivity || !button || appNotificationPanel?.isConnected) return;
+  appNotificationPanel = document.createElement("section");
+  appNotificationPanel.className = "bu-notification-panel hidden";
+  appNotificationPanel.id = "appNotificationPanel";
+  appNotificationPanel.setAttribute("aria-label", "Notifications");
+  appNotificationPanel.innerHTML = `
+    <div class="bu-notification-panel-header">
+      <div><strong>Notifications</strong><small id="buNotificationSummary">Your Between Us updates</small></div>
+      <button type="button" class="bu-notification-mark-all" data-notification-mark-all>Mark all read</button>
+    </div>
+    <div class="bu-notification-list" id="buNotificationList"><p class="bu-notification-empty">Your notifications will appear here. ♡</p></div>
+    <div class="bu-notification-panel-footer">
+      <button type="button" class="soft-button small" id="enableBrowserNotificationsButton">Enable browser notifications</button>
+      <p id="buBrowserNotificationStatus" role="status">Browser alerts require your permission.</p>
+    </div>`;
+  userActivity.appendChild(appNotificationPanel);
+  button.setAttribute("aria-haspopup", "dialog");
+  button.setAttribute("aria-expanded", "false");
+  button.addEventListener("click", event => {
+    event.stopPropagation();
+    const open = appNotificationPanel.classList.contains("hidden");
+    appNotificationPanel.classList.toggle("hidden", !open);
+    button.setAttribute("aria-expanded", String(open));
+    if (open) renderAppNotifications();
+  });
+  appNotificationPanel.addEventListener("click", async event => {
+    event.stopPropagation();
+    if (event.target.closest("[data-notification-mark-all]")) {
+      await Promise.all(appNotifications.filter(n => !n.read).map(n => markAppNotificationRead(n.id)));
+      return;
+    }
+    if (event.target.closest("#enableBrowserNotificationsButton")) {
+      await enableBrowserNotifications();
+      return;
+    }
+    const itemButton = event.target.closest("[data-app-notification-id]");
+    if (!itemButton) return;
+    const item = appNotifications.find(n => n.id === itemButton.dataset.appNotificationId);
+    if (!item) return;
+    await markAppNotificationRead(item.id);
+    appNotificationPanel.classList.add("hidden");
+    button.setAttribute("aria-expanded", "false");
+    await openNotificationTarget(item);
+  });
+  if (!document.documentElement.dataset.buNotificationOutsideClickBound) {
+    document.documentElement.dataset.buNotificationOutsideClickBound = "true";
+    document.addEventListener("click", event => {
+      if (!appNotificationPanel || appNotificationPanel.classList.contains("hidden")) return;
+      if (appNotificationPanel.contains(event.target) || button.contains(event.target)) return;
+      appNotificationPanel.classList.add("hidden");
+      button.setAttribute("aria-expanded", "false");
+    });
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && appNotificationPanel && !appNotificationPanel.classList.contains("hidden")) {
+        appNotificationPanel.classList.add("hidden");
+        button.setAttribute("aria-expanded", "false");
+      }
+    });
+  }
+}
+
+function renderAppNotifications() {
+  const list = document.getElementById("buNotificationList");
+  const summary = document.getElementById("buNotificationSummary");
+  if (!list) return;
+  const unread = appNotifications.filter(n => !n.read).length;
+  if (summary) summary.textContent = unread ? `${unread} unread update${unread === 1 ? "" : "s"}` : "You're all caught up ♡";
+  if (!appNotifications.length) {
+    list.innerHTML = '<p class="bu-notification-empty">No notifications yet. New activity will show up here. ♡</p>';
+    return;
+  }
+  list.innerHTML = appNotifications.map(item => `
+    <button type="button" class="bu-notification-item ${item.read ? "is-read" : "is-unread"}" data-app-notification-id="${escapeHtml(item.id)}">
+      <span class="bu-notification-item-dot" aria-hidden="true"></span>
+      <span class="bu-notification-item-copy"><strong>${escapeHtml(item.title || "New activity")}</strong><span>${escapeHtml(item.message || "You have a new update.")}</span><small>${escapeHtml(item.createdAt ? formatDateTime(item.createdAt) : "Just now")}</small></span>
+    </button>`).join("");
+}
+
+function updateAppNotificationBadge() {
+  const badge = document.getElementById("headerActivityBadge");
+  const button = document.getElementById("headerActivityButton");
+  if (!badge || !button) return;
+  const unread = appNotifications.filter(n => !n.read).length;
+  badge.textContent = unread > 99 ? "99+" : String(unread);
+  badge.classList.toggle("hidden", unread === 0);
+  button.classList.toggle("has-activity", unread > 0);
+  button.setAttribute("aria-label", unread ? `${unread} unread notification${unread === 1 ? "" : "s"}` : "View notifications");
+  button.title = unread ? `${unread} unread notification${unread === 1 ? "" : "s"}` : "View notifications";
+}
+
+async function markAppNotificationRead(notificationId) {
+  if (!currentUser?.uid || !notificationId) return;
+  const item = appNotifications.find(n => n.id === notificationId);
+  if (!item || item.read) return;
+  try {
+    await updateDoc(doc(db, "notifications", notificationId), { read: true, readAt: serverTimestamp() });
+  } catch (error) {
+    console.error("MARK NOTIFICATION READ ERROR:", error);
+    toast("Couldn't mark that notification as read.");
+  }
+}
+
+async function openNotificationTarget(item) {
+  if (item.listId && ["shared_list", "shared_list_update"].includes(item.type)) {
+    await loadPlayerList(item.listId);
+    return;
+  }
+  setParam("game", null);
+  setParam("list", null);
+  showScreen("landingScreen");
+  await loadDashboard();
+  if (item.type === "friend_request") {
+    showFriendsPanel("requests");
+    document.getElementById("friendRequestsPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+  if (item.type === "friend_request_accepted") {
+    await showFriendsList();
+    document.getElementById("friendsListPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+  const sectionId = item.targetSection === "sentFriendQuestions" || item.type === "friend_question_answered"
+    ? "sentFriendQuestions" : "incomingFriendQuestions";
+  document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  document.getElementById(sectionId)?.classList.add("bu-notification-target");
+  window.setTimeout(() => document.getElementById(sectionId)?.classList.remove("bu-notification-target"), 1600);
+}
+
+function stopAppNotificationListener() {
+  if (appNotificationsUnsubscribe) appNotificationsUnsubscribe();
+  appNotificationsUnsubscribe = null;
+  appNotificationsUid = null;
+  appNotificationsReady = false;
+  appNotifications = [];
+  updateAppNotificationBadge();
+  renderAppNotifications();
+}
+
+function startAppNotificationListener() {
+  if (!currentUser?.uid || currentUser.isAnonymous) {
+    stopAppNotificationListener();
+    return;
+  }
+  if (appNotificationsUid === currentUser.uid && appNotificationsUnsubscribe) return;
+  stopAppNotificationListener();
+  appNotificationsUid = currentUser.uid;
+  // Query by recipient only to avoid requiring a composite Firestore index.
+  const notificationsQuery = query(collection(db, "notifications"), where("recipientUid", "==", currentUser.uid));
+  appNotificationsUnsubscribe = onSnapshot(notificationsQuery, snapshot => {
+    appNotifications = snapshot.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => timestampMillis(b.createdAt) - timestampMillis(a.createdAt))
+      .slice(0, 30);
+    appNotificationsReady = true;
+    updateAppNotificationBadge();
+    renderAppNotifications();
+  }, error => {
+    appNotificationsReady = false;
+    console.error("APP NOTIFICATION LISTENER ERROR:", error);
+    updateHeaderActivityCount();
+    const status = document.getElementById("buBrowserNotificationStatus");
+    if (status) status.textContent = "In-app notifications need the Firestore notifications rule.";
+  });
+}
+
+async function enableBrowserNotifications() {
+  const status = document.getElementById("buBrowserNotificationStatus");
+  const button = document.getElementById("enableBrowserNotificationsButton");
+  if (!currentUser?.uid || currentUser.isAnonymous) {
+    if (status) status.textContent = "Create or sign in to a Between Us account first.";
+    return;
+  }
+  if (button) button.disabled = true;
+  if (status) status.textContent = "Requesting browser permission…";
+  try {
+    const token = await getBrowserMessagingToken();
+    if (!token) {
+      if (status) status.textContent = "Permission was not granted. You can enable it in browser settings.";
+      return;
+    }
+    await updateDoc(doc(db, "users", currentUser.uid), { fcmTokens: arrayUnion(token), fcmTokenUpdatedAt: serverTimestamp() });
+    if (!foregroundMessagingBound) {
+      onMessage(getMessaging(), payload => {
+        const title = payload.notification?.title || "Between Us";
+        const body = payload.notification?.body || "You have a new update.";
+        toast(`${title}: ${body}`);
+        if (Notification.permission === "granted" && document.visibilityState === "visible") {
+          try { new Notification(title, { body }); } catch (error) { console.warn("Could not show foreground browser notification:", error); }
+        }
+      });
+      foregroundMessagingBound = true;
+    }
+    if (status) status.textContent = "This device is registered. Background push still needs a server-side FCM sender.";
+    toast("Browser notification permission enabled on this device ♡");
+  } catch (error) {
+    console.error("ENABLE BROWSER NOTIFICATIONS ERROR:", error);
+    if (status) status.textContent = error.message || "Couldn't enable browser notifications.";
+    toast("Couldn't enable browser notifications.");
+  } finally {
+    if (button) button.disabled = false;
   }
 }
 
@@ -302,6 +625,302 @@ let dashboardGames = [];
 let dashboardLists = [];
 let dashboardGroups = [];
 let dashboardFriendQuestions = [];
+
+/* =========================================================
+   HEADER ACTIVITY
+========================================================= */
+
+let headerActivityButton = null;
+let headerActivityBadge = null;
+
+let headerActivityUnsubscribers = [];
+let headerActivityUid = null;
+
+let headerActivityUnread = new Map();
+
+let incomingQuestionStates = new Map();
+let sentQuestionStates = new Map();
+
+let incomingQuestionBaselineReady = false;
+let sentQuestionBaselineReady = false;
+
+let lastHeaderActivityType = "incoming";
+
+
+function createHeaderActivityButton() {
+  if (headerActivityButton) {
+    return;
+  }
+
+  const topbar = document.querySelector(".topbar");
+
+  if (!topbar) {
+    console.warn("Between Us header was not found.");
+    return;
+  }
+
+  headerActivityButton = document.createElement("button");
+
+  headerActivityButton.type = "button";
+  headerActivityButton.className = "bu-header-activity";
+  headerActivityButton.setAttribute(
+    "aria-label",
+    "View new activity"
+  );
+  headerActivityButton.title = "New activity";
+
+  headerActivityButton.innerHTML = `
+    <span class="bu-header-activity-heart" aria-hidden="true">
+      ♥
+    </span>
+    <span class="bu-header-activity-badge hidden"
+          aria-live="polite"></span>
+  `;
+
+  headerActivityBadge = headerActivityButton.querySelector(
+    ".bu-header-activity-badge"
+  );
+
+  headerActivityButton.addEventListener("click", async () => {
+    const targetId =
+      lastHeaderActivityType === "sent"
+        ? "sentFriendQuestions"
+        : "incomingFriendQuestions";
+
+    // Clear the current in-app unread indicator.
+    headerActivityUnread.clear();
+    updateHeaderActivityButton();
+
+    // Return to the main screen and load its activity sections.
+    setParam("game", null);
+    setParam("list", null);
+
+    showScreen("landingScreen");
+
+    await loadDashboard();
+
+    // The sections are loaded after the dashboard data.
+    document.getElementById(targetId)?.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  });
+
+  // Prefer the existing action area if the HTML has one.
+  const actions = topbar.querySelector(".top-actions");
+
+  if (actions) {
+    actions.prepend(headerActivityButton);
+  } else {
+    topbar.appendChild(headerActivityButton);
+  }
+}
+
+
+function updateHeaderActivityButton() {
+  if (!headerActivityButton) {
+    return;
+  }
+
+  const count = headerActivityUnread.size;
+
+  if (headerActivityBadge) {
+    headerActivityBadge.textContent =
+      count > 99 ? "99+" : String(count);
+
+    headerActivityBadge.classList.toggle(
+      "hidden",
+      count === 0
+    );
+  }
+
+  headerActivityButton.classList.toggle(
+    "has-activity",
+    count > 0
+  );
+
+  headerActivityButton.setAttribute(
+    "aria-label",
+    count > 0
+      ? `${count} new activity item${count === 1 ? "" : "s"}`
+      : "View activity"
+  );
+
+  headerActivityButton.title =
+    count > 0
+      ? `${count} new activity item${count === 1 ? "" : "s"}`
+      : "View activity";
+}
+
+
+function registerHeaderActivity(type, id) {
+  const key = `${type}:${id}`;
+
+  // Do not count the same activity twice.
+  if (headerActivityUnread.has(key)) {
+    return;
+  }
+
+  headerActivityUnread.set(key, {
+    type,
+    id
+  });
+
+  lastHeaderActivityType = type;
+
+  updateHeaderActivityButton();
+
+  if (headerActivityButton) {
+    // Restart the gentle animation for each new item.
+    headerActivityButton.classList.remove("is-shaking");
+
+    void headerActivityButton.offsetWidth;
+
+    headerActivityButton.classList.add("is-shaking");
+  }
+}
+
+
+function stopHeaderActivityListener() {
+  headerActivityUnsubscribers.forEach(unsubscribe => {
+    try {
+      unsubscribe();
+    } catch (error) {
+      console.warn("Could not stop activity listener:", error);
+    }
+  });
+
+  headerActivityUnsubscribers = [];
+}
+
+
+function startHeaderActivityListener() {
+  if (!currentUser) {
+    return;
+  }
+
+  createHeaderActivityButton();
+
+  // Don't attach duplicate listeners for the same account.
+  if (headerActivityUid === currentUser.uid &&
+      headerActivityUnsubscribers.length) {
+    return;
+  }
+
+  stopHeaderActivityListener();
+
+  headerActivityUid = currentUser.uid;
+
+  headerActivityUnread.clear();
+  incomingQuestionStates = new Map();
+  sentQuestionStates = new Map();
+
+  incomingQuestionBaselineReady = false;
+  sentQuestionBaselineReady = false;
+
+  updateHeaderActivityButton();
+
+  /* ---------- QUESTIONS RECEIVED ---------- */
+
+  const incomingQuery = query(
+    collection(db, "friendQuestions"),
+    where("toUid", "==", currentUser.uid)
+  );
+
+  const stopIncoming = onSnapshot(
+    incomingQuery,
+    snapshot => {
+      // Wait for the server's first snapshot so cached data
+      // is not mistaken for newly received activity.
+      if (
+        !incomingQuestionBaselineReady &&
+        snapshot.metadata.fromCache
+      ) {
+        return;
+      }
+
+      const nextStates = new Map();
+
+      snapshot.docs.forEach(questionDoc => {
+        const question = questionDoc.data();
+        const id = questionDoc.id;
+        const status = question.status || "pending";
+
+        nextStates.set(id, status);
+
+        if (
+          incomingQuestionBaselineReady &&
+          !incomingQuestionStates.has(id) &&
+          status === "pending"
+        ) {
+          registerHeaderActivity("incoming", id);
+        }
+      });
+
+      incomingQuestionStates = nextStates;
+      incomingQuestionBaselineReady = true;
+    },
+    error => {
+      console.error(
+        "INCOMING ACTIVITY LISTENER ERROR:",
+        error
+      );
+    }
+  );
+
+  headerActivityUnsubscribers.push(stopIncoming);
+
+  /* ---------- ANSWERS TO QUESTIONS I SENT ---------- */
+
+  const sentQuery = query(
+    collection(db, "friendQuestions"),
+    where("fromUid", "==", currentUser.uid)
+  );
+
+  const stopSent = onSnapshot(
+    sentQuery,
+    snapshot => {
+      if (
+        !sentQuestionBaselineReady &&
+        snapshot.metadata.fromCache
+      ) {
+        return;
+      }
+
+      const nextStates = new Map();
+
+      snapshot.docs.forEach(questionDoc => {
+        const question = questionDoc.data();
+        const id = questionDoc.id;
+        const status = question.status || "pending";
+
+        nextStates.set(id, status);
+
+        const previousStatus = sentQuestionStates.get(id);
+
+        if (
+          sentQuestionBaselineReady &&
+          sentQuestionStates.has(id) &&
+          previousStatus !== "answered" &&
+          status === "answered"
+        ) {
+          registerHeaderActivity("sent", id);
+        }
+      });
+
+      sentQuestionStates = nextStates;
+      sentQuestionBaselineReady = true;
+    },
+    error => {
+      console.error(
+        "SENT QUESTION ACTIVITY LISTENER ERROR:",
+        error
+      );
+    }
+  );
+
+  headerActivityUnsubscribers.push(stopSent);
+}
 
 /* =========================================================
    CATEGORIES
@@ -654,6 +1273,7 @@ function initHeaderActivityButton() {
   // with the username immediately to the LEFT of the message icon.
   if (usernameDisplay) userActivity.appendChild(usernameDisplay);
   userActivity.appendChild(button);
+  ensureAppNotificationPanel(userActivity, button);
 
   if (logoutButton.parentElement !== actions) {
     logoutButton.remove();
@@ -661,21 +1281,7 @@ function initHeaderActivityButton() {
   }
   logoutButton.classList.add("bu-header-logout");
 
-  button.addEventListener("click", () => {
-    const incoming = $("incomingFriendQuestions");
-    if (incoming) {
-      incoming.scrollIntoView({ behavior: "smooth", block: "start" });
-      incoming.classList.add("bu-notification-target");
-      window.setTimeout(() => incoming.classList.remove("bu-notification-target"), 1600);
-      try { localStorage.setItem("betweenUsLastSeenIncomingQuestions", String(Date.now())); } catch (_) {}
-    } else {
-      const dashboard = $("dashboardContent");
-      if (dashboard) dashboard.scrollIntoView({ behavior: "smooth", block: "start" });
-      toast("Your Questions from Friends section will appear here.");
-    }
-    markSharedListsSeen();
-    updateHeaderActivityCount();
-  });
+
 
   // If the header is flex-based, the action group stays on the right and
   // the logout button is separated from the message icon by generous space.
@@ -699,6 +1305,10 @@ function timestampMillis(value) {
 }
 
 async function updateHeaderActivityCount() {
+  if (appNotificationsReady) {
+    updateAppNotificationBadge();
+    return;
+  }
   const badge = $("headerActivityBadge");
   const button = $("headerActivityButton");
   if (!badge || !button || !currentUser || currentUser.isAnonymous) {
@@ -2128,8 +2738,6 @@ async function sendFriendRequest(targetUser) {
 
     const sender =
       senderSnap.data();
-
-
     // -----------------------------------------------
     // Check friendship
     // -----------------------------------------------
@@ -2261,6 +2869,12 @@ async function sendFriendRequest(targetUser) {
       }
     );
 
+    await createAppNotification(targetUser.uid, {
+      type: "friend_request",
+      title: "New friend request",
+      message: `${sender.username || "Someone"} sent you a friend request.`,
+      friendRequestId: requestId
+    });
 
     // -----------------------------------------------
     // Update search result
@@ -2610,6 +3224,12 @@ async function acceptFriendRequest(
       }
     );
 
+    await createAppNotification(request.fromUid, {
+      type: "friend_request_accepted",
+      title: "Friend request accepted",
+      message: `${username || "Your friend"} accepted your friend request.`,
+      friendRequestId: requestId
+    });
 
     toast(
       `${request.fromUsername} is now your friend! ♡`
@@ -3403,12 +4023,20 @@ function setupFriendQuestionChats(root) {
         const qSnap = await getDoc(doc(db, 'friendQuestions', questionId));
         if (!qSnap.exists()) throw new Error('Question not found');
         const q = qSnap.data();
+        const messageRecipientUid = q.fromUid === currentUser.uid ? q.toUid : q.fromUid;
         await addDoc(collection(db, 'friendQuestions', questionId, 'messages'), {
           questionId,
           senderUid: currentUser.uid,
-          recipientUid: q.fromUid === currentUser.uid ? q.toUid : q.fromUid,
-          senderName: currentUser.displayName || (q.fromUid === currentUser.uid ? (q.fromUsername || 'You') : (q.toUsername || 'Your friend')),
+          recipientUid: messageRecipientUid,
+          senderName: username || currentUser.displayName || (q.fromUid === currentUser.uid ? (q.fromUsername || 'You') : (q.toUsername || 'Your friend')),
           type: 'text', text, createdAt: serverTimestamp()
+        });
+        await createAppNotification(messageRecipientUid, {
+          type: "friend_message",
+          title: "New message from a friend",
+          message: `${username || "Your friend"} sent a message in your question chat.`,
+          questionId,
+          targetSection: q.fromUid === messageRecipientUid ? "sentFriendQuestions" : "incomingFriendQuestions"
         });
         input.value = '';
         await loadFriendQuestionChat(chat);
@@ -3431,11 +4059,19 @@ function setupFriendQuestionChats(root) {
         const qSnap = await getDoc(doc(db, 'friendQuestions', questionId));
         if (!qSnap.exists()) throw new Error('Question not found');
         const q = qSnap.data();
+        const messageRecipientUid = q.fromUid === currentUser.uid ? q.toUid : q.fromUid;
         await addDoc(collection(db, 'friendQuestions', questionId, 'messages'), {
           questionId, senderUid: currentUser.uid,
-          recipientUid: q.fromUid === currentUser.uid ? q.toUid : q.fromUid,
-          senderName: currentUser.displayName || (q.fromUid === currentUser.uid ? (q.fromUsername || 'You') : (q.toUsername || 'Your friend')),
+          recipientUid: messageRecipientUid,
+          senderName: username || currentUser.displayName || (q.fromUid === currentUser.uid ? (q.fromUsername || 'You') : (q.toUsername || 'Your friend')),
           type: 'poll', pollTitle: title, pollOptions: options, votes: {}, createdAt: serverTimestamp()
+        });
+        await createAppNotification(messageRecipientUid, {
+          type: "friend_message",
+          title: "New poll from a friend",
+          message: `${username || "Your friend"} sent a poll in your question chat.`,
+          questionId,
+          targetSection: q.fromUid === messageRecipientUid ? "sentFriendQuestions" : "incomingFriendQuestions"
         });
         pollForm.reset();
         await loadFriendQuestionChat(chat);
@@ -3642,6 +4278,14 @@ async function loadIncomingFriendQuestions() {
               }
             );
 
+            await createAppNotification(question.fromUid, {
+              type: "friend_question_answered",
+              title: "Your friend answered your question",
+              message: `${username || "Your friend"} answered “${(question.question || "your question").slice(0, 100)}”.`,
+              questionId,
+              targetSection: "sentFriendQuestions"
+            });
+
             toast("Your answer was sent ♡");
             await loadIncomingFriendQuestions();
           } catch (error) {
@@ -3778,6 +4422,11 @@ async function loadSentFriendQuestions() {
         if (!question || !confirm("Delete this question you sent?")) return;
 
         try {
+          // Remove chat messages first so the question does not leave orphaned subcollection data.
+          const messagesSnapshot = await getDocs(collection(db, "friendQuestions", id, "messages"));
+          for (const messageDoc of messagesSnapshot.docs) {
+            await deleteDoc(messageDoc.ref);
+          }
           await deleteDoc(doc(db, "friendQuestions", id));
           toast("Sent question deleted.");
           await loadSentFriendQuestions();
@@ -3834,157 +4483,157 @@ async function loadSentFriendQuestions() {
    PERSONAL QUESTIONS — PRIVATE DRAFTS
 ========================================================= */
 
-async function loadPersonalQuestionDrafts() {
-  const dashboard = $("dashboardContent");
-  if (!dashboard || !currentUser) return;
+// async function loadPersonalQuestionDrafts() {
+//   const dashboard = $("dashboardContent");
+//   if (!dashboard || !currentUser) return;
 
-  dashboard.querySelector("#personalQuestionDrafts")?.remove();
+//   dashboard.querySelector("#personalQuestionDrafts")?.remove();
 
-  const section = document.createElement("section");
-  section.id = "personalQuestionDrafts";
-  section.className = "friend-inbox";
-  section.innerHTML = `
-    <details>
-      <summary class="section-heading">
-        <div>
-          <p class="eyebrow">A quiet space for your own thoughts</p>
-          <h2>📝 Personal Questions</h2>
-        </div>
-        <span class="muted">Private to you</span>
-      </summary>
-      <div class="personal-drafts-content">
-        <form id="personalQuestionForm">
-          <label for="personalQuestionInput">Save a question for yourself</label>
-          <textarea id="personalQuestionInput" class="text-input" maxlength="500" required placeholder="A question to reflect on…"></textarea>
-          <div class="friend-actions">
-            <button class="soft-button" type="submit" id="savePersonalQuestionButton">Save question ♡</button>
-            <button class="soft-button hidden" type="button" id="cancelPersonalQuestionEdit">Cancel edit</button>
-          </div>
-        </form>
-        <div id="personalQuestionList"><p class="muted">Loading your private questions…</p></div>
-      </div>
-    </details>
-  `;
-  dashboard.appendChild(section);
+//   const section = document.createElement("section");
+//   section.id = "personalQuestionDrafts";
+//   section.className = "friend-inbox";
+//   section.innerHTML = `
+//     <details>
+//       <summary class="section-heading">
+//         <div>
+//           <p class="eyebrow">A quiet space for your own thoughts</p>
+//           <h2>📝 Personal Questions</h2>
+//         </div>
+//         <span class="muted">Private to you</span>
+//       </summary>
+//       <div class="personal-drafts-content">
+//         <form id="personalQuestionForm">
+//           <label for="personalQuestionInput">Save a question for yourself</label>
+//           <textarea id="personalQuestionInput" class="text-input" maxlength="500" required placeholder="A question to reflect on…"></textarea>
+//           <div class="friend-actions">
+//             <button class="soft-button" type="submit" id="savePersonalQuestionButton">Save question ♡</button>
+//             <button class="soft-button hidden" type="button" id="cancelPersonalQuestionEdit">Cancel edit</button>
+//           </div>
+//         </form>
+//         <div id="personalQuestionList"><p class="muted">Loading your private questions…</p></div>
+//       </div>
+//     </details>
+//   `;
+//   dashboard.appendChild(section);
 
-  const form = section.querySelector("#personalQuestionForm");
-  const input = section.querySelector("#personalQuestionInput");
-  const list = section.querySelector("#personalQuestionList");
-  const saveButton = section.querySelector("#savePersonalQuestionButton");
-  const cancelButton = section.querySelector("#cancelPersonalQuestionEdit");
-  let drafts = [];
-  let editingId = null;
+//   const form = section.querySelector("#personalQuestionForm");
+//   const input = section.querySelector("#personalQuestionInput");
+//   const list = section.querySelector("#personalQuestionList");
+//   const saveButton = section.querySelector("#savePersonalQuestionButton");
+//   const cancelButton = section.querySelector("#cancelPersonalQuestionEdit");
+//   let drafts = [];
+//   let editingId = null;
 
-  function resetForm() {
-    editingId = null;
-    input.value = "";
-    saveButton.textContent = "Save question ♡";
-    cancelButton.classList.add("hidden");
-  }
+//   function resetForm() {
+//     editingId = null;
+//     input.value = "";
+//     saveButton.textContent = "Save question ♡";
+//     cancelButton.classList.add("hidden");
+//   }
 
-  function renderDrafts() {
-    if (!drafts.length) {
-      list.innerHTML = `<div class="mini-empty">Your private questions will appear here. 🌷</div>`;
-      return;
-    }
+//   function renderDrafts() {
+//     if (!drafts.length) {
+//       list.innerHTML = `<div class="mini-empty">Your private questions will appear here. 🌷</div>`;
+//       return;
+//     }
 
-    list.innerHTML = drafts.map(draft => `
-      <article class="dashboard-card compact" data-personal-draft-id="${escapeHtml(draft.id)}">
-        <div class="dashboard-icon">📝</div>
-        <div class="dashboard-main">
-          <p>${escapeHtml(draft.question)}</p>
-          <small class="muted">Only you can see this question.</small>
-        </div>
-        <div class="dashboard-actions">
-          <button type="button" class="soft-button small" data-edit-personal-draft="${escapeHtml(draft.id)}">Edit</button>
-          <button type="button" class="soft-button small" data-delete-personal-draft="${escapeHtml(draft.id)}">Delete</button>
-        </div>
-      </article>
-    `).join("");
-  }
+//     list.innerHTML = drafts.map(draft => `
+//       <article class="dashboard-card compact" data-personal-draft-id="${escapeHtml(draft.id)}">
+//         <div class="dashboard-icon">📝</div>
+//         <div class="dashboard-main">
+//           <p>${escapeHtml(draft.question)}</p>
+//           <small class="muted">Only you can see this question.</small>
+//         </div>
+//         <div class="dashboard-actions">
+//           <button type="button" class="soft-button small" data-edit-personal-draft="${escapeHtml(draft.id)}">Edit</button>
+//           <button type="button" class="soft-button small" data-delete-personal-draft="${escapeHtml(draft.id)}">Delete</button>
+//         </div>
+//       </article>
+//     `).join("");
+//   }
 
-  async function fetchDrafts() {
-    const snapshot = await getDocs(query(
-      collection(db, "personalQuestionDrafts"),
-      where("ownerUid", "==", currentUser.uid)
-    ));
-    drafts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => (b.updatedAt?.seconds || b.createdAt?.seconds || 0) - (a.updatedAt?.seconds || a.createdAt?.seconds || 0));
-    renderDrafts();
-  }
+//   async function fetchDrafts() {
+//     const snapshot = await getDocs(query(
+//       collection(db, "personalQuestionDrafts"),
+//       where("ownerUid", "==", currentUser.uid)
+//     ));
+//     drafts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+//       .sort((a, b) => (b.updatedAt?.seconds || b.createdAt?.seconds || 0) - (a.updatedAt?.seconds || a.createdAt?.seconds || 0));
+//     renderDrafts();
+//   }
 
-  form.addEventListener("submit", async event => {
-    event.preventDefault();
-    const question = input.value.trim();
-    if (!question) return toast("Write a question first.");
-    if (question.length > 500) return toast("Questions must be 500 characters or fewer.");
+//   form.addEventListener("submit", async event => {
+//     event.preventDefault();
+//     const question = input.value.trim();
+//     if (!question) return toast("Write a question first.");
+//     if (question.length > 500) return toast("Questions must be 500 characters or fewer.");
 
-    saveButton.disabled = true;
-    try {
-      if (editingId) {
-        await updateDoc(doc(db, "personalQuestionDrafts", editingId), {
-          question,
-          updatedAt: serverTimestamp()
-        });
-        toast("Private question updated ♡");
-      } else {
-        await addDoc(collection(db, "personalQuestionDrafts"), {
-          ownerUid: currentUser.uid,
-          question,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-        toast("Private question saved ♡");
-      }
-      resetForm();
-      await fetchDrafts();
-    } catch (error) {
-      console.error("SAVE PERSONAL QUESTION ERROR:", error);
-      toast("Couldn't save it. Check that your personalQuestionDrafts Firestore rules are published.");
-    } finally {
-      saveButton.disabled = false;
-    }
-  });
+//     saveButton.disabled = true;
+//     try {
+//       if (editingId) {
+//         await updateDoc(doc(db, "personalQuestionDrafts", editingId), {
+//           question,
+//           updatedAt: serverTimestamp()
+//         });
+//         toast("Private question updated ♡");
+//       } else {
+//         await addDoc(collection(db, "personalQuestionDrafts"), {
+//           ownerUid: currentUser.uid,
+//           question,
+//           createdAt: serverTimestamp(),
+//           updatedAt: serverTimestamp()
+//         });
+//         toast("Private question saved ♡");
+//       }
+//       resetForm();
+//       await fetchDrafts();
+//     } catch (error) {
+//       console.error("SAVE PERSONAL QUESTION ERROR:", error);
+//       toast("Couldn't save it. Check that your personalQuestionDrafts Firestore rules are published.");
+//     } finally {
+//       saveButton.disabled = false;
+//     }
+//   });
 
-  cancelButton.addEventListener("click", resetForm);
+//   cancelButton.addEventListener("click", resetForm);
 
-  list.addEventListener("click", async event => {
-    const editButton = event.target.closest("[data-edit-personal-draft]");
-    const deleteButton = event.target.closest("[data-delete-personal-draft]");
+//   list.addEventListener("click", async event => {
+//     const editButton = event.target.closest("[data-edit-personal-draft]");
+//     const deleteButton = event.target.closest("[data-delete-personal-draft]");
 
-    if (editButton) {
-      const draft = drafts.find(item => item.id === editButton.dataset.editPersonalDraft);
-      if (!draft) return;
-      editingId = draft.id;
-      input.value = draft.question;
-      saveButton.textContent = "Update question ♡";
-      cancelButton.classList.remove("hidden");
-      input.focus();
-      return;
-    }
+//     if (editButton) {
+//       const draft = drafts.find(item => item.id === editButton.dataset.editPersonalDraft);
+//       if (!draft) return;
+//       editingId = draft.id;
+//       input.value = draft.question;
+//       saveButton.textContent = "Update question ♡";
+//       cancelButton.classList.remove("hidden");
+//       input.focus();
+//       return;
+//     }
 
-    if (deleteButton) {
-      const id = deleteButton.dataset.deletePersonalDraft;
-      if (!confirm("Delete this private question?")) return;
-      try {
-        await deleteDoc(doc(db, "personalQuestionDrafts", id));
-        if (editingId === id) resetForm();
-        toast("Private question deleted.");
-        await fetchDrafts();
-      } catch (error) {
-        console.error("DELETE PERSONAL QUESTION ERROR:", error);
-        toast("Couldn't delete that private question.");
-      }
-    }
-  });
+//     if (deleteButton) {
+//       const id = deleteButton.dataset.deletePersonalDraft;
+//       if (!confirm("Delete this private question?")) return;
+//       try {
+//         await deleteDoc(doc(db, "personalQuestionDrafts", id));
+//         if (editingId === id) resetForm();
+//         toast("Private question deleted.");
+//         await fetchDrafts();
+//       } catch (error) {
+//         console.error("DELETE PERSONAL QUESTION ERROR:", error);
+//         toast("Couldn't delete that private question.");
+//       }
+//     }
+//   });
 
-  try {
-    await fetchDrafts();
-  } catch (error) {
-    console.error("LOAD PERSONAL QUESTIONS ERROR:", error);
-    list.innerHTML = `<div class="mini-empty">Couldn't load your private questions. Check your Firestore rules.</div>`;
-  }
-}
+//   try {
+//     await fetchDrafts();
+//   } catch (error) {
+//     console.error("LOAD PERSONAL QUESTIONS ERROR:", error);
+//     list.innerHTML = `<div class="mini-empty">Couldn't load your private questions. Check your Firestore rules.</div>`;
+//   }
+// }
 
 /* =========================================================
    DASHBOARD
@@ -4092,12 +4741,36 @@ async function populateFriendDropdowns() {
   }
 }
 
+// Reveal the friend picker when the creator chooses "Send to friend".
+document.querySelectorAll('input[name="friendQuestionMode"]').forEach(radio => {
+  radio.addEventListener("change", async () => {
+    const selected = document.querySelector('input[name="friendQuestionMode"]:checked')?.value;
+    const area = $("friendQuestionSelectArea");
+    if (selected === "friend") {
+      area?.classList.remove("hidden");
+      await populateFriendDropdowns();
+    } else {
+      area?.classList.add("hidden");
+      if ($("questionFriendSelect")) $("questionFriendSelect").value = "";
+    }
+  });
+});
+
 async function loadDashboard() {
+
+  if (!currentUser) {
+    return;
+  }
+
+  startAppNotificationListener();
 
   $("dashboardContent").innerHTML =
     `<div class="loading-inline">
       Loading your things… ✨
     </div>`;
+
+  // Keep the rest of your existing loadDashboard()
+  // function exactly as it is.
 
   try {
 
@@ -4240,7 +4913,7 @@ await populateFriendDropdowns();
 await loadIncomingFriendQuestions();
 await loadSentFriendQuestions();
 updateHeaderActivityCount();
-await loadPersonalQuestionDrafts();
+// await loadPersonalQuestionDrafts();
   } catch (error) {
 
     console.error(
@@ -5825,7 +6498,8 @@ async function toggleListItem(
     );
 
     await refreshPlayerListItems();
-
+    const changedItem = currentListItems.find(item => item.id === itemId);
+    await notifySharedListChange(checked ? "checked an item" : "unchecked an item", changedItem?.text || "");
     after();
 
   } catch (e) {
@@ -5893,7 +6567,7 @@ async function deleteListItem(
     );
 
     await refreshPlayerListItems();
-
+    await notifySharedListChange("deleted an item from the list");
     after();
 
   } catch (e) {
@@ -5972,7 +6646,7 @@ $("playerAddItemButton")
           .value = "";
 
         await refreshPlayerListItems();
-
+        await notifySharedListChange("added an item to the list", text);
         renderPlayerList();
 
       } catch (e) {
@@ -6061,6 +6735,80 @@ async function openListManager(
     );
   }
 }
+
+
+async function shareManagedList() {
+  if (!currentUser || !currentListId || !currentList) {
+    return toast("Open a list first.");
+  }
+
+  if (currentList.creatorId !== currentUser.uid) {
+    return toast("Only the creator can share this list.");
+  }
+
+  const friendSelect = $("manageListFriendSelect");
+  const status = $("manageListShareStatus");
+  const shareButton = $("shareManagedListButton");
+
+  const friendUid = friendSelect?.value;
+
+  if (!friendUid) {
+    return toast("Choose a friend to share this list with.");
+  }
+
+  const friendUsername =
+    friendSelect.options[friendSelect.selectedIndex]?.textContent?.trim() ||
+    "Friend";
+
+  try {
+    if (shareButton) shareButton.disabled = true;
+    if (status) status.textContent = "Sharing list...";
+    const alreadySharedWithThisFriend = currentList.sharedWithUid === friendUid;
+
+    await updateDoc(
+      doc(db, "lists", currentListId),
+      {
+        sharedWithUid: friendUid,
+        sharedWithUsername: friendUsername,
+        sharedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      }
+    );
+
+    if (!alreadySharedWithThisFriend) {
+      await createAppNotification(friendUid, {
+        type: "shared_list",
+        title: "A friend shared a list with you",
+        message: `${username || "A friend"} shared “${currentList.title || "a list"}” with you.`,
+        listId: currentListId,
+        listTitle: currentList.title || "Untitled list",
+        targetSection: "shared-list"
+      });
+    }
+
+
+    currentList.sharedWithUid = friendUid;
+    currentList.sharedWithUsername = friendUsername;
+
+    if (status) {
+      status.textContent = `List shared with ${friendUsername}.`;
+    }
+
+    toast(`List shared with ${friendUsername}.`);
+
+  } catch (error) {
+    console.error("SHARE LIST ERROR:", error);
+
+    if (status) {
+      status.textContent = "Couldn't share this list.";
+    }
+
+    toast("Couldn't share this list. Check your permissions.");
+  } finally {
+    if (shareButton) shareButton.disabled = false;
+  }
+}
+
 
 /* =========================================================
    RENDER MANAGE ITEMS
@@ -6154,7 +6902,8 @@ function renderManageItems() {
           );
 
           await refreshPlayerListItems();
-
+          const changedItem = currentListItems.find(item => item.id === input.dataset.manageCheck);
+          await notifySharedListChange(input.checked ? "checked an item" : "unchecked an item", changedItem?.text || "");
           renderManageItems();
         }
       );
@@ -6198,6 +6947,7 @@ function renderManageItems() {
           );
 
           await refreshPlayerListItems();
+          await notifySharedListChange("edited an item in the list", text);
         }
       );
 
@@ -6245,7 +6995,7 @@ function renderManageItems() {
           );
 
           await refreshPlayerListItems();
-
+          await notifySharedListChange("deleted an item from the list");
           renderManageItems();
         }
       );
@@ -6256,6 +7006,12 @@ function renderManageItems() {
 /* =========================================================
    SAVE LIST PERMISSION
 ========================================================= */
+
+$("shareManagedListButton")?.addEventListener(
+  "click",
+  shareManagedList
+);
+
 
 $("saveListPermissionButton")
   .addEventListener(
@@ -6283,6 +7039,8 @@ $("saveListPermissionButton")
         currentList.permission =
           $("managePermission")
             .value;
+
+        await notifySharedListChange(`changed the list permission to ${currentList.permission}`);
 
         toast(
           "Permission updated ✨"
@@ -6361,7 +7119,7 @@ $("manageAddItemButton")
           .value = "";
 
         await refreshPlayerListItems();
-
+        await notifySharedListChange("added an item to the list", text);
         renderManageItems();
 
       } catch (e) {
@@ -6502,6 +7260,8 @@ function getQuestionDraft() {
   const options = [...document.querySelectorAll(".option-value")]
     .map(input => input.value.trim())
     .filter(Boolean);
+  const friendMode = document.querySelector('input[name="friendQuestionMode"]:checked')?.value || "game";
+  const friendUid = $("questionFriendSelect")?.value || "";
 
   return {
     id: editingQuestionId || makeId(),
@@ -6509,7 +7269,9 @@ function getQuestionDraft() {
     category: getSelectedCategory(),
     answerType,
     options: answerType === "options" ? options : [],
-    allowCustomAnswer: answerType === "options" ? $("allowCustomAnswer").checked : false
+    allowCustomAnswer: answerType === "options" ? $("allowCustomAnswer").checked : false,
+    friendMode,
+    friendUid
   };
 }
 
@@ -6534,6 +7296,10 @@ function clearQuestionForm() {
   $("allowCustomAnswer").checked = false;
   $("optionsList").innerHTML = "";
   $("cancelEditQuestionButton")?.classList.add("hidden");
+  const gameMode = document.querySelector('input[name="friendQuestionMode"][value="game"]');
+  if (gameMode) gameMode.checked = true;
+  if ($("questionFriendSelect")) $("questionFriendSelect").value = "";
+  $("friendQuestionSelectArea")?.classList.add("hidden");
   renderOptionsEditor();
 }
 
@@ -6626,6 +7392,56 @@ $("saveQuestionButton")?.addEventListener("click", async () => {
   if (!draft.question) return toast("Write the question first.");
   if (draft.answerType === "options" && draft.options.length < 2) {
     return toast("Add at least two answer choices.");
+  }
+
+  // Sending to a friend is a separate action from saving a question to a game.
+  if (draft.friendMode === "friend") {
+    if (!currentUser?.uid) return toast("Please sign in again before sending a question.");
+    if (!draft.friendUid) return toast("Choose a friend first.");
+
+    const selectedFriendOption = $("questionFriendSelect")?.selectedOptions?.[0];
+    const friendUsername = selectedFriendOption?.textContent?.trim() || "Friend";
+    const sendButton = $("saveQuestionButton");
+    if (sendButton) sendButton.disabled = true;
+
+    try {
+      const friendQuestionRef = await addDoc(collection(db, "friendQuestions"), {
+        questionId: draft.id,
+        question: draft.question,
+        category: draft.category,
+        answerType: draft.answerType,
+        options: draft.options,
+        allowCustomAnswer: draft.allowCustomAnswer,
+        fromUid: currentUser.uid,
+        fromUsername: username || "",
+        toUid: draft.friendUid,
+        toUsername: friendUsername,
+        status: "pending",
+        createdAt: serverTimestamp(),
+        sentAt: serverTimestamp()
+      });
+
+      await createAppNotification(draft.friendUid, {
+        type: "friend_question_received",
+        title: "A friend sent you a question",
+        message: `${username || "Your friend"} sent you a question to answer.`,
+        questionId: friendQuestionRef.id,
+        targetSection: "incomingFriendQuestions"
+      });
+
+      toast("Question sent to your friend ♡");
+      clearQuestionForm();
+      document.querySelector('input[name="friendQuestionMode"][value="game"]')?.click();
+      await loadDashboard();
+    } catch (error) {
+      console.error("SEND QUESTION TO FRIEND ERROR:", error);
+      toast(error?.code === "permission-denied"
+        ? "Firebase blocked this send. Check the friendQuestions create rule."
+        : "Couldn't send the question. Please try again.");
+    } finally {
+      if (sendButton) sendButton.disabled = false;
+    }
+    return;
   }
 
   const existingIndex = creatorQuestions.findIndex(question => question.id === draft.id);

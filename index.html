@@ -1402,14 +1402,29 @@
 
       <div class="card">
 
-        <label for="manageListFriendSelect">
-          Shared with
-        </label>
+<label for="manageListFriendSelect">
+  Share this list with
+</label>
 
-        <select
-          id="manageListFriendSelect"
-          class="text-input"
-        >
+<div class="share-list-controls">
+  <select
+    id="manageListFriendSelect"
+    class="text-input"
+  >
+    <option value="">Choose a friend...</option>
+  </select>
+
+  <button
+    type="button"
+    id="shareManagedListButton"
+    class="primary-button"
+  >
+    Share List
+  </button>
+</div>
+
+<p id="manageListShareStatus" role="status"></p>
+
 
           <option value="">
             No friend selected

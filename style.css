@@ -2137,7 +2137,7 @@ body:has(#usernameScreen:not(.hidden)) .brand-mark {
   color: #72002D !important;
   border: 1px solid #edc4d5;
 }
-body:has(#usernameScreen:not(.hidden)) .app-shell { color: #493f4b; }
+body:has(#usernameScreen:not(.hidden)) .app-shell { color: #faedfd; }
 #usernameScreen:not(.hidden) { display: flex; }
 #usernameScreen {
   min-height: calc(100vh - 106px);
@@ -2464,15 +2464,18 @@ body.dark-mode .bu-header-activity-badge { border-color: #090609; background: #d
   line-height: 1.2;
 }
 #usernameDisplay.bu-header-username.hidden { display: none !important; }
-body.dark-mode #usernameDisplay.bu-header-username { color: #0a0a0a; }
+body.dark-mode #usernameDisplay.bu-header-username { color: #121212; }
 .bu-header-logout {
   order: 3;
   flex: 0 0 auto;
   margin-left: clamp(18px, 3.4vw, 48px) !important;
 }
+body.dark-mode .hero h1{
+color: #f4f4f4; 
 
+}
 body.dark-mode #homeButton{
-  color: #ffffff;
+color: #f4f4f4; 
 }
 body.dark-mode .bu-header-theme-wrap.theme-toggle-wrap {
   background: rgba(27, 11, 20, .94);
@@ -2508,4 +2511,131 @@ body.dark-mode .bu-header-theme-wrap.theme-toggle-wrap {
   .bu-header-user-activity { gap: 7px; }
   .bu-header-logout { margin-left: 8px !important; }
   #usernameDisplay.bu-header-username { max-width: 24vw; }
+}
+
+/* =========================================================
+   BETWEEN US — IN-APP NOTIFICATION PANEL
+   Theme-aware, responsive, and compatible with the existing header activity icon.
+========================================================= */
+.bu-header-user-activity { position: relative; }
+.bu-notification-panel {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  z-index: 1200;
+  width: min(390px, calc(100vw - 24px));
+  max-height: min(72vh, 590px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e7bfd0;
+  border-radius: 18px;
+  background: #fffafd;
+  color: #493f4b;
+  box-shadow: 0 18px 48px rgba(64, 23, 45, .2);
+  text-align: left;
+}
+.bu-notification-panel.hidden { display: none !important; }
+.bu-notification-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px 16px 12px;
+  border-bottom: 1px solid #f0dce6;
+}
+.bu-notification-panel-header strong,
+.bu-notification-panel-header small { display: block; }
+.bu-notification-panel-header strong { font: 700 17px Quicksand, sans-serif; }
+.bu-notification-panel-header small { margin-top: 3px; color: #8a7482; font-size: 12px; }
+.bu-notification-mark-all {
+  border: 0;
+  background: transparent;
+  color: #9d315c;
+  padding: 4px 0;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.bu-notification-list { overflow-y: auto; min-height: 70px; }
+.bu-notification-item {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 15px;
+  border: 0;
+  border-bottom: 1px solid #f2e5ec;
+  background: transparent;
+  color: #493f4b;
+  text-align: left;
+  cursor: pointer;
+}
+.bu-notification-item:hover,
+.bu-notification-item:focus-visible { background: #fff0f5; outline-offset: -3px; }
+.bu-notification-item.is-unread { background: #fff4f8; }
+.bu-notification-item-dot { flex: 0 0 8px; width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; background: #c7b7c1; }
+.bu-notification-item.is-unread .bu-notification-item-dot { background: #c2185b; box-shadow: 0 0 0 3px rgba(194, 24, 91, .1); }
+.bu-notification-item-copy { min-width: 0; display: grid; gap: 4px; }
+.bu-notification-item-copy strong { font-size: 13px; line-height: 1.35; }
+.bu-notification-item-copy span { color: #6f606b; font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.bu-notification-item-copy small { color: #95838f; font-size: 11px; }
+.bu-notification-empty { margin: 0; padding: 24px 16px; color: #887783; font-size: 13px; line-height: 1.5; text-align: center; }
+.bu-notification-panel-footer { padding: 12px 15px 14px; border-top: 1px solid #f0dce6; }
+.bu-notification-panel-footer .soft-button { width: 100%; }
+.bu-notification-panel-footer p { margin: 8px 0 0; color: #8a7482; font-size: 11px; line-height: 1.45; overflow-wrap: anywhere; }
+.bu-notification-panel-footer button:disabled { opacity: .65; cursor: wait; }
+body.dark-mode .bu-notification-panel {
+  background: #09090b !important;
+  color: #d1cbd2 !important;
+  border-color: #45404b !important;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .55);
+}
+body.dark-mode .bu-notification-panel-header,
+body.dark-mode .bu-notification-panel-footer { border-color: #34343a !important; }
+body.dark-mode .bu-notification-panel-header strong,
+body.dark-mode .bu-notification-item-copy strong { color: #e1dce3 !important; }
+body.dark-mode .bu-notification-panel-header small,
+body.dark-mode .bu-notification-panel-footer p,
+body.dark-mode .bu-notification-empty,
+body.dark-mode .bu-notification-item-copy span,
+body.dark-mode .bu-notification-item-copy small { color: #b6afb9 !important; }
+body.dark-mode .bu-notification-mark-all { color: #f0a0be !important; }
+body.dark-mode .bu-notification-item { background: #09090b !important; color: #d1cbd2 !important; border-bottom-color: #29262d !important; }
+body.dark-mode .bu-notification-item.is-unread { background: #171015 !important; }
+body.dark-mode .bu-notification-item:hover,
+body.dark-mode .bu-notification-item:focus-visible { background: #261520 !important; }
+body.dark-mode .bu-notification-item-dot { background: #6b606b; }
+body.dark-mode .bu-notification-item.is-unread .bu-notification-item-dot { background: #f0a0be; box-shadow: 0 0 0 3px rgba(240, 160, 190, .12); }
+body.dark-mode .bu-notification-panel-footer .soft-button { background: #1b1419 !important; color: #e5ddd8 !important; border-color: #64233f !important; }
+@media (max-width: 560px) {
+  .bu-notification-panel { position: fixed; top: 76px; right: 10px; width: calc(100vw - 20px); max-height: calc(100vh - 100px); }
+}
+
+
+/* Shared-list items must follow the same Dark Cozy surfaces as dashboard cards. */
+body.dark-mode .shared-item,
+body.dark-mode .manage-item {
+  background: #09090b !important;
+  color: #c7c7cc !important;
+  border-color: #34343a !important;
+}
+body.dark-mode .shared-item label,
+body.dark-mode .shared-item label span,
+body.dark-mode .manage-item label,
+body.dark-mode .manage-item-text {
+  color: #c7c7cc !important;
+}
+body.dark-mode .manage-item-text {
+  background: transparent !important;
+  border-color: transparent !important;
+  caret-color: #f0a0be;
+}
+body.dark-mode .shared-item.checked span,
+body.dark-mode .manage-item.checked .manage-item-text {
+  color: #8f8992 !important;
+}
+body.dark-mode .shared-item input[type="checkbox"],
+body.dark-mode .manage-item input[type="checkbox"] {
+  accent-color: #d96b93 !important;
 }
