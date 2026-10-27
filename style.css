@@ -2040,7 +2040,7 @@ body.dark-mode #sentFriendQuestions .friend-question-count {
 }
 
 /* Dashboard Create Question / Create List actions */
-body.dark-mode #createQuestionButton,
+body.dark-mode #createQuestionsButton,
 body.dark-mode #createListButton,
 body.dark-mode #createQuestionGameButton,
 body.dark-mode [data-action="create-question"],
@@ -2056,7 +2056,7 @@ body.dark-mode .dashboard-card .soft-button {
   box-shadow: none !important;
 }
 
-body.dark-mode #createQuestionButton:hover,
+body.dark-mode #createQuestionsButton:hover,
 body.dark-mode #createListButton:hover,
 body.dark-mode #createQuestionGameButton:hover,
 body.dark-mode [data-action="create-question"]:hover,
