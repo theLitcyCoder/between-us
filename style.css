@@ -208,7 +208,10 @@ button {
 }
 
 .dashboard-section {
-    margin-top: 28px
+    margin-top: 28px;
+    padding: 24px;
+    border-radius: 24px;
+    border: 1px solid #f0e4eb;
 }
 
 .section-label {
@@ -1449,8 +1452,8 @@ button {
 ========================================================= */
 
 body.dark-mode {
-  background: #181a1b !important;
-  color: #e8e6e3 !important;
+  background: #330913 !important;
+  color: #E5DDD8 !important;
 
   color-scheme: dark;
 }
@@ -1461,9 +1464,9 @@ body.dark-mode {
 --------------------------------------------------------- */
 
 body.dark-mode .topbar {
-  background: rgba(24, 26, 27, 0.82) !important;
-  border-bottom-color: #482a3f !important;
-  color: #bcb7ae !important;
+  background: rgba(28, 22, 25, 0.94) !important;
+  border-bottom-color: #64233F !important;
+  color: #E5DDD8 !important;
 }
 
 
@@ -1472,8 +1475,8 @@ body.dark-mode .topbar {
 --------------------------------------------------------- */
 
 body.dark-mode .app-shell {
-  background: #181a1b !important;
-  color: #e8e6e3 !important;
+  background: #330913 !important;
+  color: #E5DDD8 !important;
 }
 
 
@@ -1487,9 +1490,9 @@ body.dark-mode .game-card,
 body.dark-mode .list-card,
 body.dark-mode .question-card,
 body.dark-mode .response-card {
-  background: #1b1d1e !important;
-  color: #e8e6e3 !important;
-  border-color: #482a3f !important;
+  background: #1B1919 !important;
+  color: #E5DDD8 !important;
+  border-color: #64233F !important;
 }
 
 
@@ -1500,14 +1503,14 @@ body.dark-mode .response-card {
 body.dark-mode input,
 body.dark-mode textarea,
 body.dark-mode select {
-  background: #242728 !important;
-  color: #e9d3e0 !important;
-  border-color: #736b5e !important;
+  background: #24151b !important;
+  color: #E5DDD8 !important;
+  border-color: #64233F !important;
 }
 
 body.dark-mode input::placeholder,
 body.dark-mode textarea::placeholder {
-  color: #afa89e !important;
+  color: #c9b9c2 !important;
 }
 
 
@@ -1516,13 +1519,13 @@ body.dark-mode textarea::placeholder {
 --------------------------------------------------------- */
 
 body.dark-mode .soft-button {
-  background: #272a2c !important;
-  color: #e9d3e0 !important;
-  border-color: #71695d !important;
+  background: #72002D !important;
+  color: #E5DDD8 !important;
+  border-color: #8a3156 !important;
 }
 
 body.dark-mode .soft-button:hover {
-  background: #2e3234 !important;
+  background: #91003A !important;
 }
 
 
@@ -1531,9 +1534,9 @@ body.dark-mode .soft-button:hover {
 --------------------------------------------------------- */
 
 body.dark-mode .game-ready-message {
-  background: #261e29 !important;
-  color: #eccee1 !important;
-  border-color: #51233a !important;
+  background: #271019 !important;
+  color: #F2DDE7 !important;
+  border-color: #64233F !important;
 }
 
 
@@ -1542,9 +1545,9 @@ body.dark-mode .game-ready-message {
 --------------------------------------------------------- */
 
 body.dark-mode .ai-result {
-  background: #232627 !important;
-  color: #dad7d2 !important;
-  border-color: #4a293c !important;
+  background: #1B1919 !important;
+  color: #D5CBD0 !important;
+  border-color: #64233F !important;
 }
 
 
@@ -1554,7 +1557,7 @@ body.dark-mode .ai-result {
 
 body.dark-mode .empty-state,
 body.dark-mode .question-empty {
-  color: #bcb7ae !important;
+  color: #E5DDD8 !important;
 }
 
 
@@ -1563,12 +1566,12 @@ body.dark-mode .question-empty {
 --------------------------------------------------------- */
 
 body.dark-mode a {
-  color: #da648b;
+  color: #D96B93;
 }
 
 body.dark-mode .accent,
 body.dark-mode .pink {
-  color: #da648b;
+  color: #D96B93;
 }
 
 
@@ -1578,7 +1581,7 @@ body.dark-mode .pink {
 
 body.dark-mode input[type="checkbox"],
 body.dark-mode input[type="radio"] {
-  accent-color: #da648b;
+  accent-color: #D96B93;
 }
 
 
@@ -1587,16 +1590,16 @@ body.dark-mode input[type="radio"] {
 --------------------------------------------------------- */
 
 body.dark-mode .theme-toggle-wrap {
-  background: rgba(24, 26, 27, 0.9);
+  background: rgba(28, 22, 25, 0.96);
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
 }
 
 body.dark-mode .theme-toggle {
-  background: #493643;
+  background: #64233F;
 }
 
 body.dark-mode .theme-toggle-knob {
-  background: #e8e6e3;
+  background: #E5DDD8;
   transform: translateX(22px);
 }
 
@@ -1744,14 +1747,14 @@ body {
 .bu-chat-poll ul { margin: .4rem 0; padding-left: 1.25rem; }
 .bu-chat-poll li { margin: .2rem 0; }
 
-body.dark-mode .bu-chat { background: #202326 !important; border-color: #77506a !important; color: #f5f1f5 !important; }
+body.dark-mode .bu-chat { background: #1B1919 !important; border-color: #64233F !important; color: #c7c7cc !important; }
 body.dark-mode .bu-chat h4,
 body.dark-mode .bu-chat label,
 body.dark-mode .bu-chat summary,
 body.dark-mode .bu-chat .muted,
 body.dark-mode .bu-question-time { color: #f0eaf0 !important; opacity: 1; }
-body.dark-mode .bu-chat-message { background: #292c30 !important; color: #f5f5f5 !important; border-color: #66606a !important; }
-body.dark-mode .bu-chat-message.mine { background: #452b40 !important; color: #fff5fb !important; border-color: #b978a0 !important; }
+body.dark-mode .bu-chat-message { background: #100d10 !important; color: #c7c7cc !important; border-color: #4b2639 !important; }
+body.dark-mode .bu-chat-message.mine { background: #330913 !important; color: #d5cbd0 !important; border-color: #8a3156 !important; }
 body.dark-mode .bu-chat-message-meta time { color: #e1d5e0 !important; opacity: 1; }
 body.dark-mode .bu-chat-poll small { color: #e8dfe7 !important; }
 body.dark-mode .friend-question-card,
@@ -1958,9 +1961,9 @@ body.dark-mode .bu-chat-compose textarea,
 body.dark-mode .bu-chat-poll-form input,
 body.dark-mode .bu-chat-poll-form textarea,
 body.dark-mode .bu-chat-poll-form select {
-  background-color: #24252b !important;
+  background-color: #171014 !important;
   color: #c7c7cc !important;
-  border-color: #68616d !important;
+  border-color: #64233F !important;
 }
 body.dark-mode .bu-chat-compose textarea::placeholder,
 body.dark-mode .bu-chat-poll-form input::placeholder,
@@ -1969,13 +1972,13 @@ body.dark-mode .bu-chat-poll-form textarea::placeholder {
   opacity: 1 !important;
 }
 body.dark-mode .bu-poll-vote {
-  background-color: #303037 !important;
-  border-color: #68616d !important;
+  background-color: #1B1919 !important;
+  border-color: #64233F !important;
   color: #c7c7cc !important;
 }
 body.dark-mode .bu-poll-vote.selected {
-  background-color: #45404a !important;
-  border-color: #96859a !important;
+  background-color: #330913 !important;
+  border-color: #D96B93 !important;
   color: #dedee2 !important;
 }
 
@@ -1992,6 +1995,7 @@ body.dark-mode .empty-state,
 body.dark-mode .mini-empty,
 body.dark-mode .question-empty,
 body.dark-mode #incomingFriendQuestions,
+body.dark-mode #sentFriendQuestions,
 body.dark-mode .friend-inbox,
 body.dark-mode .friend-inbox-list:empty {
   background: #09090b !important;
@@ -2026,7 +2030,11 @@ body.dark-mode .question-empty,
 body.dark-mode #incomingFriendQuestions summary,
 body.dark-mode #incomingFriendQuestions summary h2,
 body.dark-mode #incomingFriendQuestions summary p,
-body.dark-mode #incomingFriendQuestions .friend-question-count {
+body.dark-mode #incomingFriendQuestions .friend-question-count,
+body.dark-mode #sentFriendQuestions summary,
+body.dark-mode #sentFriendQuestions summary h2,
+body.dark-mode #sentFriendQuestions summary p,
+body.dark-mode #sentFriendQuestions .friend-question-count {
   color: #c7c7cc !important;
   opacity: 1 !important;
 }
@@ -2072,4 +2080,267 @@ body.dark-mode #incomingFriendQuestions .friend-inbox-list > div:only-child {
   background: #09090b !important;
   color: #c7c7cc !important;
   border-color: #34343a !important;
+}
+
+
+/* Expandable chat for each individual friend question */
+.bu-chat-accordion {
+  margin-top: 1rem;
+  border: 1px solid #64233F;
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(51, 9, 19, .06);
+}
+.bu-chat-accordion > .bu-chat-accordion-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .85rem 1rem;
+  cursor: pointer;
+  list-style: none;
+  color: #64233F;
+  font-weight: 700;
+}
+.bu-chat-accordion > .bu-chat-accordion-summary::-webkit-details-marker { display: none; }
+.bu-chat-accordion-title { display: inline-flex; align-items: center; gap: .45rem; }
+.bu-chat-accordion-hint { font-size: .82rem; font-weight: 600; opacity: .85; white-space: nowrap; }
+.bu-chat-accordion[open] > .bu-chat-accordion-summary { border-bottom: 1px solid #64233F; }
+.bu-chat-accordion > .bu-chat { margin: 0; border: 0; border-radius: 0; }
+body.dark-mode .bu-chat-accordion { background: #100d10 !important; border-color: #64233F !important; }
+body.dark-mode .bu-chat-accordion > .bu-chat-accordion-summary { color: #D96B93 !important; }
+body.dark-mode .bu-chat-accordion[open] > .bu-chat-accordion-summary { border-bottom-color: #64233F !important; }
+@media (max-width: 420px) {
+  .bu-chat-accordion > .bu-chat-accordion-summary { align-items: flex-start; flex-direction: column; gap: .25rem; }
+}
+
+/* =========================================================
+   BETWEEN US ACCOUNT SCREEN — THEME-AWARE BURGUNDY
+   Light mode stays light; dark mode uses burgundy and black.
+   Scoped to login / create-account only.
+========================================================= */
+body:has(#usernameScreen:not(.hidden)) {
+  background:
+    radial-gradient(ellipse at 18% 12%, rgba(217, 107, 147, .12), transparent 42%),
+    radial-gradient(ellipse at 86% 88%, rgba(255, 225, 235, .65), transparent 38%),
+    #fff9fc !important;
+  color: #493f4b;
+}
+body:has(#usernameScreen:not(.hidden)) .topbar {
+  background: rgba(255, 255, 255, .92) !important;
+  border-bottom-color: #f0dce6 !important;
+  color: #493f4b !important;
+}
+body:has(#usernameScreen:not(.hidden)) .brand { color: #493f4b !important; }
+body:has(#usernameScreen:not(.hidden)) .brand-mark {
+  background: #ffe6ef !important;
+  color: #72002D !important;
+  border: 1px solid #edc4d5;
+}
+body:has(#usernameScreen:not(.hidden)) .app-shell { color: #493f4b; }
+#usernameScreen:not(.hidden) { display: flex; }
+#usernameScreen {
+  min-height: calc(100vh - 106px);
+  align-items: center;
+  justify-content: center;
+  padding-top: 24px;
+  padding-bottom: 48px;
+}
+#usernameScreen .username-card {
+  width: min(480px, 100%);
+  margin-inline: auto;
+  padding: clamp(24px, 5vw, 38px);
+  text-align: center;
+  color: #493f4b !important;
+  background: linear-gradient(155deg, #ffffff 0%, #fff7fb 100%) !important;
+  border: 1px solid #e9c8d8 !important;
+  border-radius: 26px !important;
+  box-shadow: 0 24px 70px rgba(101, 28, 62, .12), 0 0 34px rgba(217, 107, 147, .08) !important;
+}
+#usernameScreen h1,
+#usernameScreen h2,
+#usernameScreen h3,
+#usernameScreen .page-heading h1,
+#usernameScreen #accountScreenTitle { color: #330913 !important; }
+#usernameScreen p,
+#usernameScreen .page-heading p,
+#usernameScreen #accountScreenDescription,
+#usernameScreen small,
+#usernameScreen .optional { color: #786775 !important; }
+#usernameScreen .eyebrow { color: #9d315c !important; }
+#usernameScreen label { color: #493f4b !important; }
+#usernameScreen input:not([type="checkbox"]):not([type="radio"]),
+#usernameScreen .text-input,
+#usernameScreen input[type="password"],
+#usernameScreen input[type="text"] {
+  background: #ffffff !important;
+  color: #332630 !important;
+  border: 1px solid #dcb7c9 !important;
+  border-radius: 13px !important;
+  caret-color: #72002D;
+}
+#usernameScreen input::placeholder { color: #96818e !important; opacity: 1; }
+#usernameScreen input:focus {
+  border-color: #9d315c !important;
+  box-shadow: 0 0 0 3px rgba(157, 49, 92, .13) !important;
+  outline: none;
+}
+#usernameScreen .primary-button,
+#usernameScreen button[type="submit"] {
+  background: #72002D !important;
+  color: #FFF5F8 !important;
+  border: 1px solid #9A315B !important;
+  box-shadow: 0 8px 22px rgba(114, 0, 45, .18) !important;
+}
+#usernameScreen .primary-button:hover,
+#usernameScreen button[type="submit"]:hover {
+  background: #8A1748 !important;
+  border-color: #D96B93 !important;
+}
+#usernameScreen .soft-button,
+#usernameScreen .ghost,
+#usernameScreen button:not(.primary-button):not([type="submit"]) {
+  background: #fff0f5 !important;
+  color: #5a1734 !important;
+  border: 1px solid #e7bfd0 !important;
+}
+#usernameScreen .soft-button:hover,
+#usernameScreen .ghost:hover,
+#usernameScreen button:not(.primary-button):not([type="submit"]):hover {
+  background: #ffe1ec !important;
+  border-color: #c96a8e !important;
+}
+#usernameScreen input[type="checkbox"],
+#usernameScreen input[type="radio"] { accent-color: #72002D !important; }
+#usernameScreen .username-display {
+  background: #fff0f5 !important;
+  color: #72002D !important;
+  border: 1px solid #e7bfd0 !important;
+}
+#usernameScreen .card,
+#usernameScreen .empty-state {
+  background: #fffafd !important;
+  color: #493f4b !important;
+  border-color: #e9c8d8 !important;
+}
+
+/* Account screen in dark mode only */
+body.dark-mode:has(#usernameScreen:not(.hidden)) {
+  background:
+    radial-gradient(ellipse at 18% 12%, rgba(114, 0, 45, .24), transparent 42%),
+    radial-gradient(ellipse at 86% 88%, rgba(100, 35, 63, .18), transparent 38%),
+    #090609 !important;
+  color: #E5DDD8;
+}
+body.dark-mode:has(#usernameScreen:not(.hidden)) .topbar {
+  background: rgba(15, 10, 13, .94) !important;
+  border-bottom-color: #64233F !important;
+  color: #E5DDD8 !important;
+}
+body.dark-mode:has(#usernameScreen:not(.hidden)) .brand { color: #E5DDD8 !important; }
+body.dark-mode:has(#usernameScreen:not(.hidden)) .brand-mark {
+  background: #330913 !important;
+  color: #D96B93 !important;
+  border: 1px solid #64233F;
+}
+body.dark-mode:has(#usernameScreen:not(.hidden)) .app-shell { color: #E5DDD8; }
+body.dark-mode #usernameScreen .username-card {
+  color: #E5DDD8 !important;
+  background: linear-gradient(155deg, #171015 0%, #0d0a0d 72%) !important;
+  border-color: #64233F !important;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .48), 0 0 34px rgba(114, 0, 45, .14) !important;
+}
+body.dark-mode #usernameScreen h1,
+body.dark-mode #usernameScreen h2,
+body.dark-mode #usernameScreen h3,
+body.dark-mode #usernameScreen .page-heading h1,
+body.dark-mode #usernameScreen #accountScreenTitle { color: #F4E9EE !important; }
+body.dark-mode #usernameScreen p,
+body.dark-mode #usernameScreen .page-heading p,
+body.dark-mode #usernameScreen #accountScreenDescription,
+body.dark-mode #usernameScreen small,
+body.dark-mode #usernameScreen .optional { color: #C2B4BE !important; }
+body.dark-mode #usernameScreen .eyebrow { color: #D96B93 !important; }
+body.dark-mode #usernameScreen label { color: #E5DDD8 !important; }
+body.dark-mode #usernameScreen input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode #usernameScreen .text-input,
+body.dark-mode #usernameScreen input[type="password"],
+body.dark-mode #usernameScreen input[type="text"] {
+  background: #090609 !important;
+  color: #F4E9EE !important;
+  border-color: #64233F !important;
+  caret-color: #D96B93;
+}
+body.dark-mode #usernameScreen input::placeholder { color: #998793 !important; }
+body.dark-mode #usernameScreen input:focus {
+  border-color: #D96B93 !important;
+  box-shadow: 0 0 0 3px rgba(217, 107, 147, .16) !important;
+}
+body.dark-mode #usernameScreen .primary-button,
+body.dark-mode #usernameScreen button[type="submit"] {
+  background: #72002D !important;
+  color: #FFF5F8 !important;
+  border-color: #9A315B !important;
+  box-shadow: 0 8px 22px rgba(114, 0, 45, .28) !important;
+}
+body.dark-mode #usernameScreen .primary-button:hover,
+body.dark-mode #usernameScreen button[type="submit"]:hover {
+  background: #8A1748 !important;
+  border-color: #D96B93 !important;
+}
+body.dark-mode #usernameScreen .soft-button,
+body.dark-mode #usernameScreen .ghost,
+body.dark-mode #usernameScreen button:not(.primary-button):not([type="submit"]) {
+  background: #1B1419 !important;
+  color: #E5DDD8 !important;
+  border-color: #64233F !important;
+}
+body.dark-mode #usernameScreen .soft-button:hover,
+body.dark-mode #usernameScreen .ghost:hover,
+body.dark-mode #usernameScreen button:not(.primary-button):not([type="submit"]):hover {
+  background: #2A101C !important;
+  border-color: #D96B93 !important;
+}
+body.dark-mode #usernameScreen input[type="checkbox"],
+body.dark-mode #usernameScreen input[type="radio"] { accent-color: #D96B93 !important; }
+body.dark-mode #usernameScreen .username-display {
+  background: #330913 !important;
+  color: #F0B4C9 !important;
+  border-color: #64233F !important;
+}
+body.dark-mode #usernameScreen .card,
+body.dark-mode #usernameScreen .empty-state {
+  background: #110c10 !important;
+  color: #E5DDD8 !important;
+  border-color: #64233F !important;
+}
+@media (max-width: 520px) {
+  #usernameScreen .username-card { padding: 24px 18px; border-radius: 20px !important; }
+}
+
+/* Message totals make collapsed friend conversations visibly non-empty. */
+.bu-chat-message-count {
+  display: inline-flex;
+  align-items: center;
+  margin-left: .35rem;
+  padding: .18rem .55rem;
+  border: 1px solid #d9a7bd;
+  border-radius: 999px;
+  background: #fff2f7;
+  color: #72002D;
+  font-size: .76rem;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+.bu-chat-message-count.is-empty {
+  opacity: .78;
+}
+body.dark-mode .bu-chat-message-count {
+  background: #2a101d !important;
+  border-color: #64233F !important;
+  color: #F0A0BE !important;
+}
+@media (max-width: 560px) {
+  .bu-chat-message-count { margin-left: .1rem; font-size: .72rem; }
 }

@@ -76,7 +76,11 @@ async function askAI({
       throw new Error(data.error || "AI request failed.");
     }
 
-    return data.text;
+    if (typeof data.text !== "string" || !data.text.trim()) {
+      throw new Error(data.error || "The AI service returned an empty response.");
+    }
+
+    return data.text.trim();
 
   } catch (error) {
     console.error("AI error:", error);
@@ -164,7 +168,7 @@ async function explainResponse(responseId) {
 
   const button =
     document.querySelector(
-      `[data-ai-response="${responseId}"]`
+      `[data-ai-response="${CSS.escape(responseId)}"]`
     );
 
   if (!resultBox || !button) {
@@ -185,7 +189,9 @@ async function explainResponse(responseId) {
       mode: "response-understanding",
       question: response.question,
       category: response.category,
-      answer: response.answer
+      answer: Array.isArray(response.answer)
+        ? response.answer.join("; ")
+        : (response.answer || "")
     });
 
     resultBox.textContent = interpretation;
@@ -202,6 +208,15 @@ async function explainResponse(responseId) {
     button.textContent =
       "✨ Understand this response";
   }
+}
+
+/* =========================================================
+   QUESTION HELP BUTTON WIRING
+========================================================= */
+
+const questionHelpButton = document.getElementById("questionHelpButton");
+if (questionHelpButton) {
+  questionHelpButton.addEventListener("click", explainCurrentQuestion);
 }
 
 /* =========================================================
@@ -588,28 +603,91 @@ function updateUsernameDisplay() {
   const display =
     $("usernameDisplay");
 
-  if (!display) {
+  if (display) {
+    if (username) {
+      display.textContent = username;
+      display.classList.remove("hidden");
+    } else {
+      display.textContent = "";
+      display.classList.add("hidden");
+    }
+  }
+
+  // The logout action is only relevant for a signed-in,
+  // registered Between Us account (not anonymous visitors).
+  const logoutButton = $("logoutButton");
+  if (logoutButton) {
+    logoutButton.classList.toggle(
+      "hidden",
+      !currentUser || currentUser.isAnonymous
+    );
+  }
+}
+
+/* =========================================================
+   LOG OUT
+   Sign out without immediately creating a new anonymous
+   Firebase session. Keep the landing/account options usable.
+========================================================= */
+function initLogoutButton() {
+  const logoutButton = $("logoutButton");
+  if (!logoutButton || logoutButton.dataset.logoutReady === "true") {
     return;
   }
 
-  if (username) {
+  logoutButton.dataset.logoutReady = "true";
 
-    display.textContent =
-      username;
+  logoutButton.addEventListener("click", async (event) => {
+    event.preventDefault();
+    if (logoutButton.disabled) return;
 
-    display.classList.remove(
-      "hidden"
-    );
+    logoutButton.disabled = true;
+    const originalText = logoutButton.textContent;
+    logoutButton.textContent = "Logging out…";
 
-  } else {
+    try {
+      // Remember only the username, never the password.
+      const usernameToRemember =
+        username || localStorage.getItem("betweenUsUsername") ||
+        localStorage.getItem("betweenUsRememberedUsername") || "";
 
-    display.textContent =
-      "";
+      if (usernameToRemember) {
+        localStorage.setItem("betweenUsRememberedUsername", usernameToRemember);
+      }
 
-    display.classList.add(
-      "hidden"
-    );
-  }
+      await logout();
+
+      currentUser = null;
+      username = "";
+
+      try {
+        localStorage.removeItem("betweenUsUsername");
+        localStorage.setItem("betweenUsLoggedOut", "true");
+      } catch (storageError) {
+        // Signing out should still work if storage is unavailable.
+      }
+
+      updateUsernameDisplay();
+
+      // Clear account-only dashboard content from view.
+      const dashboardContent = $("dashboardContent");
+      if (dashboardContent) dashboardContent.innerHTML = "";
+
+      const homeContent = $("homeContent");
+      if (homeContent) homeContent.classList.remove("hidden");
+
+      // Return to the account gate: the user must log in or switch to create account.
+      showUsernameScreen("login", false);
+      toast("You have been logged out. Log in or create an account to continue.");
+    } catch (error) {
+      console.error("LOGOUT ERROR:", error);
+      toast(error?.message || "Couldn't log out. Please try again.");
+    } finally {
+      logoutButton.disabled = false;
+      logoutButton.textContent = originalText || "Log out";
+      updateUsernameDisplay();
+    }
+  });
 }
 
 
@@ -736,6 +814,16 @@ function showUsernameScreen(mode = "create", hasExistingSpace = false) {
 
   if (mode === "login") {
 
+    const loginUsernameInput = $("loginUsernameInput");
+    if (loginUsernameInput) {
+      const rememberedUsername =
+        localStorage.getItem("betweenUsRememberedUsername") ||
+        localStorage.getItem("betweenUsUsername") || "";
+      if (!loginUsernameInput.value.trim() && rememberedUsername) {
+        loginUsernameInput.value = rememberedUsername;
+      }
+    }
+
     $("loginUsernameInput")?.focus();
 
   } else {
@@ -845,10 +933,9 @@ async function loginAccount() {
       data.username ||
       loginUsername;
 
-    localStorage.setItem(
-      "betweenUsUsername",
-      username
-    );
+    localStorage.setItem("betweenUsUsername", username);
+    localStorage.setItem("betweenUsRememberedUsername", username);
+    localStorage.removeItem("betweenUsLoggedOut");
 
     updateUsernameDisplay();
 
@@ -858,9 +945,7 @@ async function loginAccount() {
      * Clear password fields.
      */
     passwordInput.value = "";
-
-    $("loginUsernameInput").value =
-      "";
+    // Keep the username visible for the next login on this device.
 
     /*
      * Go to the normal Between Us home.
@@ -968,11 +1053,18 @@ async function createAccount() {
    * Creating an account is specifically meant
    * to upgrade the current anonymous Firebase user.
    */
-  if (
-    !currentUser ||
-    !currentUser.isAnonymous
-  ) {
+  if (!currentUser) {
+    try {
+      currentUser = await startAnonymousAuth();
+    } catch (authError) {
+      console.error("CREATE ACCOUNT SESSION ERROR:", authError);
+      return showAccountError(
+        "Couldn't start account creation. Please try again."
+      );
+    }
+  }
 
+  if (!currentUser.isAnonymous) {
     return showAccountError(
       "This account is already signed in."
     );
@@ -1152,6 +1244,8 @@ async function createAccount() {
     username = data.username || newUsername;
 
     localStorage.setItem("betweenUsUsername", username);
+    localStorage.setItem("betweenUsRememberedUsername", username);
+    localStorage.removeItem("betweenUsLoggedOut");
 
     usernameInput.value = "";
     passwordInput.value = "";
@@ -1196,6 +1290,8 @@ $("submitUsernameButton")?.addEventListener(
 async function continueAnonymous() {
 
   try {
+
+    localStorage.removeItem("betweenUsLoggedOut");
 
     if (!currentUser) {
 
@@ -2652,7 +2748,20 @@ $("friendsListTab")
 
 async function boot() {
 
-  username ="";
+  username = "";
+
+  // An explicit logout must remain logged out after refresh.
+  // Do not silently start an anonymous Firebase session in this state.
+  if (localStorage.getItem("betweenUsLoggedOut") === "true") {
+    currentUser = null;
+    const rememberedUsername =
+      localStorage.getItem("betweenUsRememberedUsername") || "";
+    if (rememberedUsername && $("loginUsernameInput")) {
+      $("loginUsernameInput").value = rememberedUsername;
+    }
+    showUsernameScreen("login", false);
+    return;
+  }
   
 const firestoreUsername =
   await loadUsername();
@@ -2860,6 +2969,7 @@ if (firestoreUsername) {
    START APP
 ========================================================= */
 
+initLogoutButton();
 boot();
 
 /* =========================================================
@@ -2941,27 +3051,56 @@ function formatDateTime(timestamp) {
 
 function friendQuestionChatMarkup(questionId) {
   return `
-    <div class="bu-chat" data-chat-question-id="${escapeHtml(questionId)}">
-      <h4>Conversation</h4>
-      <div class="bu-chat-messages" aria-live="polite"><p class="muted">Loading conversation…</p></div>
-      <form class="bu-chat-text-form">
-        <label class="bu-chat-label">Message your friend</label>
-        <div class="bu-chat-compose">
-          <textarea class="text-input bu-chat-text" maxlength="2000" rows="2" placeholder="Write a message…"></textarea>
-          <button type="submit" class="soft-button">Send</button>
-        </div>
-      </form>
-      <details class="bu-poll-details">
-        <summary>＋ Attach a poll</summary>
-        <form class="bu-chat-poll-form">
-          <label>Poll question</label>
-          <input class="text-input bu-poll-title" maxlength="250" required placeholder="What would you like to ask?">
-          <label>Options (separate with commas)</label>
-          <input class="text-input bu-poll-options" maxlength="500" required placeholder="Option one, Option two, Option three">
-          <button type="submit" class="soft-button">Send poll</button>
+    <details class="bu-chat-accordion">
+      <summary class="bu-chat-accordion-summary">
+        <span class="bu-chat-accordion-title">💬 Conversation <span class="bu-chat-message-count" data-chat-message-count="${escapeHtml(questionId)}">Checking messages…</span></span>
+        <span class="bu-chat-accordion-hint">Expand chat <span aria-hidden="true">＋</span></span>
+      </summary>
+      <div class="bu-chat" data-chat-question-id="${escapeHtml(questionId)}">
+        <div class="bu-chat-messages" aria-live="polite"><p class="muted">Open the conversation to load messages…</p></div>
+        <form class="bu-chat-text-form">
+          <label class="bu-chat-label">Message your friend</label>
+          <div class="bu-chat-compose">
+            <textarea class="text-input bu-chat-text" maxlength="2000" rows="2" placeholder="Write a message…"></textarea>
+            <button type="submit" class="soft-button">Send</button>
+          </div>
         </form>
-      </details>
-    </div>`;
+        <details class="bu-poll-details">
+          <summary>＋ Attach a poll</summary>
+          <form class="bu-chat-poll-form">
+            <label>Poll question</label>
+            <input class="text-input bu-poll-title" maxlength="250" required placeholder="What would you like to ask?">
+            <label>Options (separate with commas)</label>
+            <input class="text-input bu-poll-options" maxlength="500" required placeholder="Option one, Option two, Option three">
+            <button type="submit" class="soft-button">Send poll</button>
+          </form>
+        </details>
+      </div>
+    </details>`;
+}
+
+function setFriendChatMessageCount(chat, count) {
+  const questionId = chat?.dataset.chatQuestionId;
+  const countEl = questionId
+    ? chat.closest('.bu-chat-accordion')?.querySelector('.bu-chat-message-count')
+    : null;
+  if (!countEl) return;
+  countEl.textContent = `${count} ${count === 1 ? 'message' : 'messages'}`;
+  countEl.classList.toggle('is-empty', count === 0);
+}
+
+async function refreshFriendChatMessageCount(chat) {
+  if (!chat || !currentUser) return;
+  const questionId = chat.dataset.chatQuestionId;
+  if (!questionId) return;
+  try {
+    const snap = await getDocs(collection(db, 'friendQuestions', questionId, 'messages'));
+    setFriendChatMessageCount(chat, snap.size);
+  } catch (error) {
+    console.error('LOAD FRIEND CHAT MESSAGE COUNT ERROR:', error);
+    const countEl = chat.closest('.bu-chat-accordion')?.querySelector('.bu-chat-message-count');
+    if (countEl) countEl.textContent = 'Messages unavailable';
+  }
 }
 
 async function loadFriendQuestionChat(chat) {
@@ -2974,6 +3113,7 @@ async function loadFriendQuestionChat(chat) {
       collection(db, "friendQuestions", questionId, "messages"),
       orderBy("createdAt", "asc")
     ));
+    setFriendChatMessageCount(chat, snap.size);
     if (snap.empty) {
       messagesEl.innerHTML = '<p class="muted bu-chat-empty">No replies yet. Start the conversation below. ♡</p>';
     } else {
@@ -2998,7 +3138,26 @@ async function loadFriendQuestionChat(chat) {
 
 function setupFriendQuestionChats(root) {
   root.querySelectorAll('.bu-chat').forEach(chat => {
-    loadFriendQuestionChat(chat);
+    // Show each conversation's message total even while its chat is collapsed.
+    refreshFriendChatMessageCount(chat);
+    const accordion = chat.closest('.bu-chat-accordion');
+    if (accordion && !accordion.dataset.chatToggleBound) {
+      accordion.dataset.chatToggleBound = 'true';
+      accordion.addEventListener('toggle', () => {
+        const hint = accordion.querySelector('.bu-chat-accordion-hint');
+        if (hint) hint.innerHTML = accordion.open
+          ? 'Collapse chat <span aria-hidden="true">−</span>'
+          : 'Expand chat <span aria-hidden="true">＋</span>';
+        if (accordion.open) loadFriendQuestionChat(chat);
+      });
+      const hint = accordion.querySelector('.bu-chat-accordion-hint');
+      if (hint) hint.innerHTML = accordion.open
+        ? 'Collapse chat <span aria-hidden="true">−</span>'
+        : 'Expand chat <span aria-hidden="true">＋</span>';
+    } else if (!accordion) {
+      // Preserve loading behavior for any legacy chat markup outside an accordion.
+      loadFriendQuestionChat(chat);
+    }
     chat.querySelector('.bu-chat-messages')?.addEventListener('click', async event => {
       const voteButton = event.target.closest('[data-poll-message-id]');
       if (!voteButton) return;
@@ -3085,8 +3244,8 @@ async function loadIncomingFriendQuestions() {
 
   if (!dashboard || !currentUser) return;
 
-  // Remove the old section before refreshing it.
-  dashboard.querySelector("#incomingFriendQuestions")?.remove();
+  // Keep the current section visible while fetching. Remove it only immediately
+  // before replacing it, so overlapping refreshes cannot append duplicates.
 
   try {
     const questionsQuery = query(
@@ -3096,12 +3255,10 @@ async function loadIncomingFriendQuestions() {
 
     const snapshot = await getDocs(questionsQuery);
 
-    const questions = snapshot.docs
-      .map(d => ({
-        id: d.id,
-        ...d.data()
-      }))
-      .sort(
+    // Firestore document IDs are unique; dedupe defensively before rendering.
+    const questions = Array.from(
+      new Map(snapshot.docs.map(d => [d.id, { id: d.id, ...d.data() }])).values()
+    ).sort(
         (a, b) =>
           (b.createdAt?.seconds || 0) -
           (a.createdAt?.seconds || 0)
@@ -3109,7 +3266,7 @@ async function loadIncomingFriendQuestions() {
 
     const section = document.createElement("section");
     section.id = "incomingFriendQuestions";
-    section.className = "friend-inbox";
+    section.className = "friend-inbox dashboard-section";
 
     section.innerHTML = `
       <details open>
@@ -3221,6 +3378,7 @@ async function loadIncomingFriendQuestions() {
       </details>
     `;
 
+    dashboard.querySelector("#incomingFriendQuestions")?.remove();
     dashboard.appendChild(section);
     setupFriendQuestionChats(section);
 
@@ -3290,6 +3448,7 @@ async function loadIncomingFriendQuestions() {
 
     const section = document.createElement("section");
     section.id = "incomingFriendQuestions";
+    section.className = "friend-inbox dashboard-section";
     section.innerHTML = `
       <div class="empty-state">
         <span>🌧️</span>
@@ -3298,6 +3457,7 @@ async function loadIncomingFriendQuestions() {
       </div>
     `;
 
+    dashboard.querySelector("#incomingFriendQuestions")?.remove();
     dashboard.appendChild(section);
   }
 }
@@ -3314,7 +3474,7 @@ async function loadSentFriendQuestions() {
 
   const section = document.createElement("section");
   section.id = "sentFriendQuestions";
-  section.className = "friend-inbox";
+  section.className = "friend-inbox dashboard-section";
   section.innerHTML = `
     <details open>
       <summary class="section-heading">
@@ -4234,6 +4394,293 @@ function renderDashboardList(list) {
 
     </article>
   `;
+}
+
+/* =========================================================
+   RESPONSES
+========================================================= */
+
+async function openResponses(
+  gameId
+) {
+
+  try {
+
+    const gameSnap =
+      await getDoc(
+        doc(
+          db,
+          "games",
+          gameId
+        )
+      );
+
+    if (!gameSnap.exists()) {
+
+      return toast(
+        "Game not found."
+      );
+    }
+
+    const game = {
+      id: gameId,
+      ...gameSnap.data()
+    };
+
+    if (
+      game.creatorId !==
+      currentUser.uid
+    ) {
+
+      return toast(
+        "Only the creator can view results."
+      );
+    }
+
+    const snap =
+      await getDocs(
+        collection(
+          db,
+          "games",
+          gameId,
+          "responses"
+        )
+      );
+
+    const responses = snap.docs.map(d => {
+      const saved = { id: d.id, ...d.data() };
+      const linkedQuestion = (game.questions || []).find(q => q.id === saved.questionId);
+      return {
+        ...saved,
+        question: saved.question || linkedQuestion?.question || "",
+        category: saved.category || linkedQuestion?.category || "very-light"
+      };
+    });
+
+    currentResponses = responses;
+
+    responses.sort(
+      (a, b) =>
+        (a.createdAt?.seconds || 0) -
+        (b.createdAt?.seconds || 0)
+    );
+
+    $("responsesTitle")
+      .textContent =
+        game.title ||
+        "Responses";
+
+    const grouped =
+      game.questions.map(
+        q => ({
+          question: q,
+
+          answers:
+            responses.filter(
+              r =>
+                r.questionId ===
+                q.id
+            )
+        })
+      );
+
+    $("responsesList")
+      .innerHTML =
+        grouped
+          .map(
+            ({
+              question,
+              answers
+            }) => {
+
+              const cat =
+                CATEGORIES[
+                  question.category
+                ] ||
+                CATEGORIES[
+                  "very-light"
+                ];
+
+              return `
+                <article class="response-card">
+
+                  <div class="response-question">
+
+                    <span
+                      class="mini-badge ${cat.scene}"
+                    >
+                      ${cat.label}
+                    </span>
+
+                    <h3>
+                      ${escapeHtml(
+                        question.question
+                      )}
+                    </h3>
+
+                  </div>
+
+                  ${
+                    answers.length
+                      ? answers
+                          .map(
+                            renderResponse
+                          )
+                          .join("")
+                      : `
+                        <p class="muted">
+                          No response yet.
+                        </p>
+                      `
+                  }
+
+                </article>
+              `;
+            }
+          )
+          .join("");
+
+    document
+      .querySelectorAll(
+        "[data-ai-response]"
+      )
+      .forEach(button => {
+
+        button.addEventListener(
+          "click",
+          () => {
+
+            explainResponse(
+              button.dataset
+                .aiResponse
+            );
+
+          }
+        );
+
+      });
+
+    showScreen(
+      "responsesScreen"
+    );
+
+  } catch (e) {
+
+    console.error(e);
+
+    toast(
+      "Couldn't load responses."
+    );
+  }
+}
+
+/* =========================================================
+   RENDER RESPONSE
+========================================================= */
+
+function renderResponse(r) {
+
+  const statusLabel = {
+
+    answered:
+      "💗 Answered",
+
+    skipped:
+      "🌸 Skipped for now",
+
+    "would-rather-talk":
+      "🫶 Would rather talk about this"
+
+  }[r.status] ||
+    r.status;
+
+  let answer = "";
+
+  if (
+    Array.isArray(r.answer)
+  ) {
+
+    answer =
+      r.answer.length
+        ? `
+          <ul>
+            ${r.answer
+              .map(
+                x =>
+                  `<li>${escapeHtml(x)}</li>`
+              )
+              .join("")}
+          </ul>
+        `
+        : "";
+
+  } else {
+
+    answer =
+      r.answer
+        ? `
+          <p>
+            ${escapeHtml(
+              r.answer
+            )}
+          </p>
+        `
+        : "";
+  }
+
+  return `
+    <div class="response-item">
+
+      <span class="status-pill">
+        ${statusLabel}
+      </span>
+
+      ${answer}
+
+      <button
+        type="button"
+        class="ai-help-button"
+        data-ai-response="${r.id}"
+      >
+        ✨ Understand this response
+      </button>
+
+      <div
+        id="ai-response-${r.id}"
+        class="ai-result hidden"
+      ></div>
+
+      <small>
+        ${formatDate(
+          r.createdAt
+        )}
+      </small>
+
+    </div>
+  `;
+}
+
+/* =========================================================
+   EDIT QUESTION GAME
+========================================================= */
+
+async function editGame(id) {
+  try {
+    const snap = await getDoc(doc(db, "games", id));
+    if (!snap.exists()) {
+      return toast("That game no longer exists.");
+    }
+
+    const game = { id: snap.id, ...snap.data() };
+    if (game.creatorId !== currentUser?.uid) {
+      return toast("Only the creator can edit this game.");
+    }
+
+    await startQuestionCreator(game);
+  } catch (error) {
+    console.error("EDIT GAME ERROR:", error);
+    toast("Couldn't open this game for editing.");
+  }
 }
 
 /* =========================================================
@@ -5765,6 +6212,255 @@ async function copyText(value) {
 
 
 /* =========================================================
+   OPTIONS EDITOR
+   Restored: required by resetQuestionCreator() and answer-type changes.
+========================================================= */
+
+function renderOptionsEditor() {
+
+  const isOptions =
+    document.querySelector(
+      'input[name="answerType"]:checked'
+    )?.value === "options";
+
+  const editor = $("optionsEditor");
+  const list = $("optionsList");
+
+  if (!editor || !list) {
+    console.warn(
+      "Options editor elements were not found in the page."
+    );
+    return;
+  }
+
+  editor.classList.toggle("hidden", !isOptions);
+
+  if (isOptions && !list.children.length) {
+    addOptionRow();
+    addOptionRow();
+  }
+}
+
+function addOptionRow(value = "") {
+
+  const list = $("optionsList");
+  if (!list) return;
+
+  const row = document.createElement("div");
+  row.className = "option-editor-row";
+
+  const input = document.createElement("input");
+  input.className = "text-input option-value";
+  input.maxLength = 160;
+  input.placeholder = "Answer choice";
+  input.value = value;
+  input.type = "text";
+
+  const removeButton = document.createElement("button");
+  removeButton.className = "icon-button danger remove-option";
+  removeButton.type = "button";
+  removeButton.textContent = "×";
+  removeButton.setAttribute("aria-label", "Remove answer choice");
+  removeButton.addEventListener("click", () => row.remove());
+
+  row.append(input, removeButton);
+  list.appendChild(row);
+}
+
+$("addOptionButton")?.addEventListener("click", () => addOptionRow());
+
+document
+  .querySelectorAll('input[name="answerType"]')
+  .forEach(input => {
+    input.addEventListener("change", renderOptionsEditor);
+  });
+
+/* =========================================================
+   QUESTION CREATOR HELPERS
+   Restored so editing and saving games work again.
+========================================================= */
+
+function getSelectedCategory() {
+  return document.querySelector('input[name="category"]:checked')?.value || "very-light";
+}
+
+function getQuestionDraft() {
+  const question = $("questionInput").value.trim();
+  const answerType = document.querySelector('input[name="answerType"]:checked')?.value || "written";
+  const options = [...document.querySelectorAll(".option-value")]
+    .map(input => input.value.trim())
+    .filter(Boolean);
+
+  return {
+    id: editingQuestionId || makeId(),
+    question,
+    category: getSelectedCategory(),
+    answerType,
+    options: answerType === "options" ? options : [],
+    allowCustomAnswer: answerType === "options" ? $("allowCustomAnswer").checked : false
+  };
+}
+
+function makeGameLink(gameId) {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("list");
+  url.searchParams.set("game", gameId);
+  url.hash = "";
+  return url.toString();
+}
+
+function clearQuestionForm() {
+  editingQuestionId = null;
+  $("questionInput").value = "";
+
+  const defaultCategory = document.querySelector('input[name="category"][value="very-light"]');
+  if (defaultCategory) defaultCategory.checked = true;
+
+  const writtenType = document.querySelector('input[name="answerType"][value="written"]');
+  if (writtenType) writtenType.checked = true;
+
+  $("allowCustomAnswer").checked = false;
+  $("optionsList").innerHTML = "";
+  $("cancelEditQuestionButton")?.classList.add("hidden");
+  renderOptionsEditor();
+}
+
+function loadQuestionForEdit(id) {
+  const question = creatorQuestions.find(item => item.id === id);
+  if (!question) return toast("Couldn't find that question.");
+
+  editingQuestionId = question.id;
+  $("questionInput").value = question.question || "";
+
+  const category = document.querySelector(`input[name="category"][value="${CSS.escape(question.category || "very-light")}"]`);
+  if (category) category.checked = true;
+
+  const answerType = question.answerType === "options" ? "options" : "written";
+  const typeInput = document.querySelector(`input[name="answerType"][value="${answerType}"]`);
+  if (typeInput) typeInput.checked = true;
+
+  $("allowCustomAnswer").checked = Boolean(question.allowCustomAnswer);
+  $("optionsList").innerHTML = "";
+  (question.options || []).forEach(option => addOptionRow(option));
+  renderOptionsEditor();
+  $("cancelEditQuestionButton")?.classList.remove("hidden");
+  $("questionInput").focus();
+}
+
+function renderQuestionList() {
+  const count = $("questionCount");
+  const empty = $("questionEmpty");
+  const list = $("questionList");
+
+  if (!count || !empty || !list) {
+    console.warn("Question list elements were not found in the page.");
+    return;
+  }
+
+  count.textContent = `${creatorQuestions.length} question${creatorQuestions.length === 1 ? "" : "s"}`;
+  empty.classList.toggle("hidden", creatorQuestions.length > 0);
+
+  list.innerHTML = creatorQuestions.map((question, index) => {
+    const category = CATEGORIES[question.category] || CATEGORIES["very-light"];
+    const summary = question.answerType === "options"
+      ? `☑️ ${(question.options || []).length} choices${question.allowCustomAnswer ? " + something else" : ""}`
+      : "📝 Written answer";
+
+    return `
+      <div class="builder-question">
+        <div class="builder-number">${index + 1}</div>
+        <div class="builder-question-main">
+          <span class="mini-badge ${escapeHtml(category.scene)}">${escapeHtml(category.label)}</span>
+          <strong>${escapeHtml(question.question || "Untitled question")}</strong>
+          <small>${summary}</small>
+        </div>
+        <div class="builder-actions">
+          <button class="soft-button small" data-edit-question="${escapeHtml(question.id)}" type="button">Edit</button>
+          <button class="icon-button danger" data-delete-question="${escapeHtml(question.id)}" type="button" aria-label="Delete question">×</button>
+        </div>
+      </div>`;
+  }).join("");
+
+  list.querySelectorAll("[data-edit-question]").forEach(button => {
+    button.addEventListener("click", () => loadQuestionForEdit(button.dataset.editQuestion));
+  });
+
+  list.querySelectorAll("[data-delete-question]").forEach(button => {
+    button.addEventListener("click", async () => {
+      const id = button.dataset.deleteQuestion;
+      creatorQuestions = creatorQuestions.filter(question => question.id !== id);
+      if (editingQuestionId === id) clearQuestionForm();
+      renderQuestionList();
+
+      if (currentGameId) {
+        try {
+          await updateDoc(doc(db, "games", currentGameId), {
+            questions: creatorQuestions.map(({ friendMode, friendUid, ...question }) => question),
+            updatedAt: serverTimestamp()
+          });
+          await loadDashboard();
+          toast("Question deleted.");
+        } catch (error) {
+          console.error("DELETE GAME QUESTION ERROR:", error);
+          toast("Question removed here, but couldn't save the change.");
+        }
+      }
+    });
+  });
+}
+
+$("saveQuestionButton")?.addEventListener("click", async () => {
+  const draft = getQuestionDraft();
+  if (!draft.question) return toast("Write the question first.");
+  if (draft.answerType === "options" && draft.options.length < 2) {
+    return toast("Add at least two answer choices.");
+  }
+
+  const existingIndex = creatorQuestions.findIndex(question => question.id === draft.id);
+  if (existingIndex >= 0) creatorQuestions[existingIndex] = draft;
+  else creatorQuestions.push(draft);
+
+  const gameQuestions = creatorQuestions.map(({ friendMode, friendUid, ...question }) => question);
+  const title = $("gameTitle").value.trim() || "Between Us Questions";
+
+  try {
+    if (!currentUser?.uid) throw new Error("No signed-in user is available.");
+
+    if (!currentGameId) {
+      const gameRef = await addDoc(collection(db, "games"), {
+        creatorId: currentUser.uid,
+        title,
+        questions: gameQuestions,
+        active: true,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      currentGameId = gameRef.id;
+      toast("Your game is ready ✨");
+    } else {
+      await updateDoc(doc(db, "games", currentGameId), {
+        title,
+        questions: gameQuestions,
+        active: true,
+        updatedAt: serverTimestamp()
+      });
+      toast("Question saved ✨");
+    }
+
+    $("gameLink").value = makeGameLink(currentGameId);
+    $("gameCreatedArea").classList.remove("hidden");
+    renderQuestionList();
+    clearQuestionForm();
+    await loadDashboard();
+  } catch (error) {
+    console.error("SAVE QUESTION ERROR:", error);
+    toast("Couldn't save the question.");
+  }
+});
+
+$("cancelEditQuestionButton")?.addEventListener("click", clearQuestionForm);
+
+/* =========================================================
    QUESTION CREATOR
 ========================================================= */
 
@@ -5867,9 +6563,3 @@ async function startQuestionCreator(
     "questionCreatorScreen"
   );
 }
-
-/* =========================================================
-   START APP
-========================================================= */
-
-boot();
