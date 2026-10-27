@@ -2470,6 +2470,10 @@ body.dark-mode #usernameDisplay.bu-header-username { color: #0a0a0a; }
   flex: 0 0 auto;
   margin-left: clamp(18px, 3.4vw, 48px) !important;
 }
+
+body.dark-mode #homeButton{
+  color: #ffffff;
+}
 body.dark-mode .bu-header-theme-wrap.theme-toggle-wrap {
   background: rgba(27, 11, 20, .94);
   border: 1px solid #64233F;
