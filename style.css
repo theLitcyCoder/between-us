@@ -2344,3 +2344,164 @@ body.dark-mode .bu-chat-message-count {
 @media (max-width: 560px) {
   .bu-chat-message-count { margin-left: .1rem; font-size: .72rem; }
 }
+
+
+/* Header activity icon: sits before Logout with a clear gap between them. */
+.topbar.bu-has-header-activity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.bu-header-actions {
+  display: flex;
+  align-items: center;
+  gap: clamp(28px, 5vw, 68px);
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+.bu-header-activity {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #d9a7bd;
+  border-radius: 14px;
+  background: #fff2f7;
+  color: #72002D;
+  font-size: 23px;
+  line-height: 1;
+  box-shadow: 0 4px 14px rgba(114, 0, 45, .08);
+  flex: 0 0 auto;
+}
+.bu-header-activity:hover,
+.bu-header-activity:focus-visible {
+  background: #fbe1ec;
+  outline: 2px solid #d96b93;
+  outline-offset: 2px;
+}
+.bu-header-activity-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff9fc;
+  border-radius: 999px;
+  background: #b00046;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+.bu-header-activity-badge.hidden { display: none !important; }
+body.dark-mode .bu-header-activity {
+  background: #1b0b14;
+  border-color: #64233F;
+  color: #F0A0BE;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .28);
+}
+body.dark-mode .bu-header-activity:hover,
+body.dark-mode .bu-header-activity:focus-visible { background: #330913; }
+body.dark-mode .bu-header-activity-badge { border-color: #090609; background: #d43d78; }
+#incomingFriendQuestions { scroll-margin-top: 92px; }
+.bu-notification-target { animation: buNotificationPulse 1.4s ease; }
+@keyframes buNotificationPulse {
+  0%, 100% { box-shadow: none; }
+  35% { box-shadow: 0 0 0 3px rgba(217, 107, 147, .45), 0 0 28px rgba(217, 107, 147, .2); }
+}
+@media (max-width: 560px) {
+  .bu-header-actions { gap: 22px; }
+  .bu-header-activity { width: 38px; height: 38px; border-radius: 12px; }
+}
+
+/* Header alignment refinement: theme, username, messages, then separated logout. */
+.topbar.bu-has-header-activity {
+  gap: 16px;
+}
+.bu-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  min-width: 0;
+  margin-left: auto;
+}
+.bu-header-theme-wrap.theme-toggle-wrap {
+  order: 1;
+  position: static !important;
+  inset: auto !important;
+  z-index: auto;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 6px 9px;
+  white-space: nowrap;
+}
+.bu-header-user-activity {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+  flex: 0 1 auto;
+  order: 2;
+}
+#usernameDisplay.bu-header-username {
+  display: inline-flex;
+  align-items: center;
+  max-width: min(22vw, 210px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #493f4b;
+  font-size: .9rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+#usernameDisplay.bu-header-username.hidden { display: none !important; }
+body.dark-mode #usernameDisplay.bu-header-username { color: #F4E9EE; }
+.bu-header-logout {
+  order: 3;
+  flex: 0 0 auto;
+  margin-left: clamp(18px, 3.4vw, 48px) !important;
+}
+body.dark-mode .bu-header-theme-wrap.theme-toggle-wrap {
+  background: rgba(27, 11, 20, .94);
+  border: 1px solid #64233F;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .28);
+}
+@media (max-width: 720px) {
+  .topbar.bu-has-header-activity {
+    height: auto;
+    min-height: 70px;
+    flex-wrap: wrap;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    row-gap: 10px;
+  }
+  .bu-header-actions {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .bu-header-theme-wrap.theme-toggle-wrap {
+    padding: 5px 7px;
+  }
+  #usernameDisplay.bu-header-username {
+    max-width: 28vw;
+    font-size: .82rem;
+  }
+  .bu-header-logout {
+    margin-left: 14px !important;
+  }
+}
+@media (max-width: 460px) {
+  .bu-header-actions { gap: 8px; }
+  .bu-header-user-activity { gap: 7px; }
+  .bu-header-logout { margin-left: 8px !important; }
+  #usernameDisplay.bu-header-username { max-width: 24vw; }
+}

@@ -595,6 +595,152 @@ function showAccountError(message) {
 
 
 /* =========================================================
+   HEADER ACTIVITY / NOTIFICATIONS
+   Badge counts new incoming friend questions, unread chat
+   replies, and newly shared lists. Clicking jumps to the
+   Questions from Friends section as requested.
+========================================================= */
+function initHeaderActivityButton() {
+  const logoutButton = $("logoutButton");
+  if (!logoutButton || document.getElementById("headerActivityButton")) return;
+
+  const topbar = logoutButton.closest(".topbar") || logoutButton.parentElement;
+  if (!topbar) return;
+
+  // Keep the message icon and logout action in a dedicated header group.
+  let actions = topbar.querySelector(".bu-header-actions");
+  if (!actions) {
+    actions = document.createElement("div");
+    actions.className = "bu-header-actions";
+    topbar.appendChild(actions);
+  }
+
+  if (logoutButton.parentElement !== actions) {
+    logoutButton.remove();
+    actions.appendChild(logoutButton);
+  }
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.id = "headerActivityButton";
+  button.className = "bu-header-activity";
+  button.setAttribute("aria-label", "New questions, replies, or shared lists");
+  button.title = "New questions, replies, or shared lists";
+  button.innerHTML = `
+    <span class="bu-header-activity-icon" aria-hidden="true">✉</span>
+    <span class="bu-header-activity-badge hidden" id="headerActivityBadge">0</span>
+  `;
+  actions.insertBefore(button, logoutButton);
+
+  button.addEventListener("click", () => {
+    const incoming = $("incomingFriendQuestions");
+    if (incoming) {
+      incoming.scrollIntoView({ behavior: "smooth", block: "start" });
+      incoming.classList.add("bu-notification-target");
+      window.setTimeout(() => incoming.classList.remove("bu-notification-target"), 1600);
+      try { localStorage.setItem("betweenUsLastSeenIncomingQuestions", String(Date.now())); } catch (_) {}
+    } else {
+      const dashboard = $("dashboardContent");
+      if (dashboard) dashboard.scrollIntoView({ behavior: "smooth", block: "start" });
+      toast("Your Questions from Friends section will appear here.");
+    }
+    markSharedListsSeen();
+    updateHeaderActivityCount();
+  });
+
+  // If the header is flex-based, the action group stays on the right and
+  // the logout button is separated from the message icon by generous space.
+  topbar.classList.add("bu-has-header-activity");
+}
+
+function markSharedListsSeen() {
+  try {
+    const ids = (dashboardSharedLists || []).map(list => list.id);
+    localStorage.setItem("betweenUsSeenSharedListIds", JSON.stringify(ids));
+  } catch (_) {}
+}
+
+function timestampMillis(value) {
+  if (!value) return 0;
+  if (typeof value.toMillis === "function") return value.toMillis();
+  if (typeof value.toDate === "function") return value.toDate().getTime();
+  if (typeof value.seconds === "number") return value.seconds * 1000;
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+async function updateHeaderActivityCount() {
+  const badge = $("headerActivityBadge");
+  const button = $("headerActivityButton");
+  if (!badge || !button || !currentUser || currentUser.isAnonymous) {
+    if (badge) badge.classList.add("hidden");
+    if (button) button.classList.add("hidden");
+    return;
+  }
+  button.classList.remove("hidden");
+
+  try {
+    const now = Date.now();
+    const incomingSnap = await getDocs(query(
+      collection(db, "friendQuestions"),
+      where("toUid", "==", currentUser.uid)
+    ));
+    const sentSnap = await getDocs(query(
+      collection(db, "friendQuestions"),
+      where("fromUid", "==", currentUser.uid)
+    ));
+    const incomingQuestions = incomingSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const allQuestions = [
+      ...incomingQuestions,
+      ...sentSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+    ];
+
+    let lastQuestionSeen = Number(localStorage.getItem("betweenUsLastSeenIncomingQuestions"));
+    if (!Number.isFinite(lastQuestionSeen) || lastQuestionSeen <= 0) {
+      lastQuestionSeen = now;
+      localStorage.setItem("betweenUsLastSeenIncomingQuestions", String(now));
+    }
+    const newIncomingQuestions = incomingQuestions.filter(q => timestampMillis(q.createdAt) > lastQuestionSeen).length;
+
+    let unreadReplies = 0;
+    for (const question of allQuestions) {
+      const seenKey = `betweenUsLastSeenChat:${currentUser.uid}:${question.id}`;
+      let lastSeen = Number(localStorage.getItem(seenKey));
+      if (!Number.isFinite(lastSeen) || lastSeen <= 0) {
+        // Establish a baseline on first run so old conversations don't
+        // incorrectly appear newly unread after installing this update.
+        localStorage.setItem(seenKey, String(now));
+        lastSeen = now;
+      }
+      const messagesSnap = await getDocs(collection(db, "friendQuestions", question.id, "messages"));
+      unreadReplies += messagesSnap.docs.filter(messageDoc => {
+        const message = messageDoc.data();
+        return message.senderUid !== currentUser.uid && timestampMillis(message.createdAt) > lastSeen;
+      }).length;
+    }
+
+    const sharedListIds = (dashboardSharedLists || []).map(list => list.id);
+    let seenSharedListIds;
+    try {
+      seenSharedListIds = JSON.parse(localStorage.getItem("betweenUsSeenSharedListIds") || "null");
+    } catch (_) { seenSharedListIds = null; }
+    if (!Array.isArray(seenSharedListIds)) {
+      seenSharedListIds = sharedListIds;
+      localStorage.setItem("betweenUsSeenSharedListIds", JSON.stringify(seenSharedListIds));
+    }
+    const newSharedLists = sharedListIds.filter(id => !seenSharedListIds.includes(id)).length;
+
+    const total = newIncomingQuestions + unreadReplies + newSharedLists;
+    badge.textContent = total > 99 ? "99+" : String(total);
+    badge.classList.toggle("hidden", total < 1);
+    button.setAttribute("aria-label", `${total} new ${total === 1 ? "item" : "items"}: questions, replies, or shared lists. Go to Questions from Friends.`);
+    button.title = `${newIncomingQuestions} new question${newIncomingQuestions === 1 ? "" : "s"}, ${unreadReplies} unread repl${unreadReplies === 1 ? "y" : "ies"}, ${newSharedLists} new shared list${newSharedLists === 1 ? "" : "s"}`;
+  } catch (error) {
+    console.error("HEADER ACTIVITY COUNT ERROR:", error);
+  }
+}
+
+/* =========================================================
    UPDATE USERNAME DISPLAY
 ========================================================= */
 
@@ -2970,6 +3116,7 @@ if (firestoreUsername) {
 ========================================================= */
 
 initLogoutButton();
+initHeaderActivityButton();
 boot();
 
 /* =========================================================
@@ -3148,7 +3295,12 @@ function setupFriendQuestionChats(root) {
         if (hint) hint.innerHTML = accordion.open
           ? 'Collapse chat <span aria-hidden="true">−</span>'
           : 'Expand chat <span aria-hidden="true">＋</span>';
-        if (accordion.open) loadFriendQuestionChat(chat);
+        if (accordion.open) {
+          try {
+            localStorage.setItem(`betweenUsLastSeenChat:${currentUser?.uid}:${chat.dataset.chatQuestionId}`, String(Date.now()));
+          } catch (_) {}
+          loadFriendQuestionChat(chat).then(() => updateHeaderActivityCount());
+        }
       });
       const hint = accordion.querySelector('.bu-chat-accordion-hint');
       if (hint) hint.innerHTML = accordion.open
@@ -3381,6 +3533,7 @@ async function loadIncomingFriendQuestions() {
     dashboard.querySelector("#incomingFriendQuestions")?.remove();
     dashboard.appendChild(section);
     setupFriendQuestionChats(section);
+    updateHeaderActivityCount();
 
     section
       .querySelectorAll(".answer-friend-question")
@@ -3543,6 +3696,7 @@ async function loadSentFriendQuestions() {
     `).join("");
 
     setupFriendQuestionChats(section);
+    updateHeaderActivityCount();
 
     list.addEventListener("click", async event => {
       const editButton = event.target.closest("[data-edit-sent-question]");
@@ -4028,6 +4182,7 @@ populateGroupSelect();
 await populateFriendDropdowns();
 await loadIncomingFriendQuestions();
 await loadSentFriendQuestions();
+updateHeaderActivityCount();
 await loadPersonalQuestionDrafts();
   } catch (error) {
 
