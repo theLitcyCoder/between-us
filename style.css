@@ -2464,7 +2464,7 @@ body.dark-mode .bu-header-activity-badge { border-color: #090609; background: #d
   line-height: 1.2;
 }
 #usernameDisplay.bu-header-username.hidden { display: none !important; }
-body.dark-mode #usernameDisplay.bu-header-username { color: #F4E9EE; }
+body.dark-mode #usernameDisplay.bu-header-username { color: #0a0a0a; }
 .bu-header-logout {
   order: 3;
   flex: 0 0 auto;

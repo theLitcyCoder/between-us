@@ -15,6 +15,7 @@ addDoc,
 setDoc,
 getDoc,
 getDocs,
+onSnapshot,
 updateDoc,
 deleteDoc,
 query,
@@ -607,7 +608,8 @@ function initHeaderActivityButton() {
   const topbar = logoutButton.closest(".topbar") || logoutButton.parentElement;
   if (!topbar) return;
 
-  // Keep the message icon and logout action in a dedicated header group.
+  // Align the theme toggle, username, message activity icon, and logout
+  // as one tidy header layout. Keep Logout visually separated on the right.
   let actions = topbar.querySelector(".bu-header-actions");
   if (!actions) {
     actions = document.createElement("div");
@@ -615,9 +617,27 @@ function initHeaderActivityButton() {
     topbar.appendChild(actions);
   }
 
-  if (logoutButton.parentElement !== actions) {
-    logoutButton.remove();
-    actions.appendChild(logoutButton);
+  const themeWrap = document.querySelector(".theme-toggle-wrap");
+  if (themeWrap && themeWrap.parentElement !== actions) {
+    themeWrap.classList.add("bu-header-theme-wrap");
+    actions.insertBefore(themeWrap, actions.firstChild);
+  }
+
+  let userActivity = actions.querySelector(".bu-header-user-activity");
+  if (!userActivity) {
+    userActivity = document.createElement("div");
+    userActivity.className = "bu-header-user-activity";
+    actions.appendChild(userActivity);
+  }
+
+  const usernameDisplay = $("usernameDisplay");
+  if (usernameDisplay) {
+    usernameDisplay.classList.add("bu-header-username");
+    // Keep the username inside the same right-aligned group as the message
+    // button, rather than leaving it in its original left-side header slot.
+    if (usernameDisplay.parentElement !== userActivity) {
+      usernameDisplay.remove();
+    }
   }
 
   const button = document.createElement("button");
@@ -630,7 +650,16 @@ function initHeaderActivityButton() {
     <span class="bu-header-activity-icon" aria-hidden="true">✉</span>
     <span class="bu-header-activity-badge hidden" id="headerActivityBadge">0</span>
   `;
-  actions.insertBefore(button, logoutButton);
+  // Keep the username and message icon in the same right-aligned group,
+  // with the username immediately to the LEFT of the message icon.
+  if (usernameDisplay) userActivity.appendChild(usernameDisplay);
+  userActivity.appendChild(button);
+
+  if (logoutButton.parentElement !== actions) {
+    logoutButton.remove();
+    actions.appendChild(logoutButton);
+  }
+  logoutButton.classList.add("bu-header-logout");
 
   button.addEventListener("click", () => {
     const incoming = $("incomingFriendQuestions");
@@ -3285,6 +3314,34 @@ async function loadFriendQuestionChat(chat) {
 
 function setupFriendQuestionChats(root) {
   root.querySelectorAll('.bu-chat').forEach(chat => {
+    // Keep each conversation connected to Firestore in real time. This updates
+    // message totals and open conversations without requiring a page refresh.
+    if (!chat.dataset.realtimeMessagesBound) {
+      chat.dataset.realtimeMessagesBound = 'true';
+      const questionId = chat.dataset.chatQuestionId;
+      if (questionId) {
+        const messagesQuery = query(
+          collection(db, 'friendQuestions', questionId, 'messages'),
+          orderBy('createdAt', 'asc')
+        );
+        chat._betweenUsMessagesUnsubscribe = onSnapshot(messagesQuery, () => {
+          if (!chat.isConnected) {
+            chat._betweenUsMessagesUnsubscribe?.();
+            return;
+          }
+          refreshFriendChatMessageCount(chat);
+          const accordion = chat.closest('.bu-chat-accordion');
+          if (!accordion || accordion.open) {
+            loadFriendQuestionChat(chat).then(() => updateHeaderActivityCount());
+          } else {
+            updateHeaderActivityCount();
+          }
+        }, error => {
+          console.error('REALTIME FRIEND CHAT LISTENER ERROR:', error);
+        });
+      }
+    }
+
     // Show each conversation's message total even while its chat is collapsed.
     refreshFriendChatMessageCount(chat);
     const accordion = chat.closest('.bu-chat-accordion');
