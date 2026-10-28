@@ -950,7 +950,7 @@ button {
     accent-color: #d87397
 }
 
-.shared-item.checked span {
+.shared-item.checked .shared-item-text {
     color: #9c8e98;
     text-decoration: line-through
 }
@@ -2137,7 +2137,7 @@ body:has(#usernameScreen:not(.hidden)) .brand-mark {
   color: #72002D !important;
   border: 1px solid #edc4d5;
 }
-body:has(#usernameScreen:not(.hidden)) .app-shell { color: #faedfd; }
+body:has(#usernameScreen:not(.hidden)) .app-shell { color: #493f4b; }
 #usernameScreen:not(.hidden) { display: flex; }
 #usernameScreen {
   min-height: calc(100vh - 106px);
@@ -2242,6 +2242,17 @@ body.dark-mode:has(#usernameScreen:not(.hidden)) .brand-mark {
   background: #330913 !important;
   color: #D96B93 !important;
   border: 1px solid #64233F;
+}
+body.dark-mode .hero h1{
+color: #f4f4f4; 
+
+}
+#homeButton a{
+    text-decoration: none;
+    
+}
+body.dark-mode #homeButton{
+color: #f4f4f4; 
 }
 body.dark-mode:has(#usernameScreen:not(.hidden)) .app-shell { color: #E5DDD8; }
 body.dark-mode #usernameScreen .username-card {
@@ -2464,18 +2475,11 @@ body.dark-mode .bu-header-activity-badge { border-color: #090609; background: #d
   line-height: 1.2;
 }
 #usernameDisplay.bu-header-username.hidden { display: none !important; }
-body.dark-mode #usernameDisplay.bu-header-username { color: #121212; }
+body.dark-mode #usernameDisplay.bu-header-username { color: #F4E9EE; }
 .bu-header-logout {
   order: 3;
   flex: 0 0 auto;
   margin-left: clamp(18px, 3.4vw, 48px) !important;
-}
-body.dark-mode .hero h1{
-color: #f4f4f4; 
-
-}
-body.dark-mode #homeButton{
-color: #f4f4f4; 
 }
 body.dark-mode .bu-header-theme-wrap.theme-toggle-wrap {
   background: rgba(27, 11, 20, .94);
@@ -2591,6 +2595,12 @@ body.dark-mode .bu-notification-panel {
   border-color: #45404b !important;
   box-shadow: 0 18px 48px rgba(0, 0, 0, .55);
 }
+
+ body.dark-mode #listCreatorScreen #permissionChoices label{
+color: #655866 !important;
+opacity: 1 !important;
+}
+
 body.dark-mode .bu-notification-panel-header,
 body.dark-mode .bu-notification-panel-footer { border-color: #34343a !important; }
 body.dark-mode .bu-notification-panel-header strong,
@@ -2631,11 +2641,170 @@ body.dark-mode .manage-item-text {
   border-color: transparent !important;
   caret-color: #f0a0be;
 }
-body.dark-mode .shared-item.checked span,
+body.dark-mode .shared-item.checked .shared-item-text,
 body.dark-mode .manage-item.checked .manage-item-text {
   color: #8f8992 !important;
 }
 body.dark-mode .shared-item input[type="checkbox"],
 body.dark-mode .manage-item input[type="checkbox"] {
   accent-color: #d96b93 !important;
+}
+
+ #listCreatorScreen .card .permission-grid
+{
+    color: black !important;
+}
+/* Shared checklist: show who checked an item on the right */
+.shared-item-checker {
+    flex: 0 0 auto;
+    margin-left: auto;
+    padding: 5px 9px;
+    border: 1px solid #ead0dc;
+    border-radius: 999px;
+    background: #f8eaf0;
+    color: #7b2948;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.2;
+    max-width: 38%;
+    overflow-wrap: anywhere;
+    text-align: right;
+}
+.shared-item-text {
+    min-width: 0;
+}
+body.dark-mode .shared-item-checker {
+    border-color: #633044;
+    background: #351923;
+    color: #f0b7cc;
+}
+
+/* Checklist checks are per-person; keep every checker's name visible at the right. */
+.shared-item-checkers {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+  gap: 5px;
+  margin-left: auto;
+  max-width: 48%;
+  flex-wrap: wrap;
+}
+.shared-item.checked .shared-item-text {
+  color: #9c8e98;
+  text-decoration: line-through;
+}
+.shared-item.checked .shared-item-checker,
+.manage-item.checked .shared-item-checker {
+  text-decoration: none !important;
+}
+body.dark-mode .shared-item.checked .shared-item-text,
+body.dark-mode .manage-item.checked .manage-item-text {
+  color: #9b929d !important;
+}
+body.dark-mode .shared-item-checker {
+  color: #ffffff !important;
+}
+
+/* In dark mode, the list and question creation screens need bright, readable text. */
+body.dark-mode #listCreatorScreen,
+body.dark-mode #questionCreatorScreen {
+  /* color: #ffffff !important; */
+}
+ body.dark-mode #questionCreatorScreen #categoryChoices label span, body.dark-mode #questionCreatorScreen .type-toggle label span{
+color: #655866 !important;
+opacity: 1 !important;
+}
+
+body.dark-mode #listCreatorScreen h1,
+body.dark-mode #listCreatorScreen h2,
+body.dark-mode #listCreatorScreen h3,
+body.dark-mode #listCreatorScreen h4,
+body.dark-mode #listCreatorScreen p,
+body.dark-mode #listCreatorScreen .card label,
+body.dark-mode #listCreatorScreen legend,
+body.dark-mode #listCreatorScreen span,
+body.dark-mode #listCreatorScreen small,
+body.dark-mode #listCreatorScreen strong,
+body.dark-mode #listCreatorScreen .field-label,
+body.dark-mode #listCreatorScreen .option-editor-row,
+body.dark-mode #questionCreatorScreen h1,
+body.dark-mode #questionCreatorScreen h2,
+body.dark-mode #questionCreatorScreen h3,
+body.dark-mode #questionCreatorScreen h4,
+body.dark-mode #questionCreatorScreen p,
+body.dark-mode #questionCreatorScreen .creator-builder label,
+body.dark-mode #questionCreatorScreen legend,
+body.dark-mode #questionCreatorScreen span,
+body.dark-mode #questionCreatorScreen small,
+body.dark-mode #questionCreatorScreen strong,
+body.dark-mode #questionCreatorScreen .field-label,
+body.dark-mode #questionCreatorScreen .builder-question-main,
+body.dark-mode #questionCreatorScreen .builder-question-main strong,
+body.dark-mode #questionCreatorScreen .builder-question-main small {
+  color:#ffffff !important;
+  opacity: 1 !important;
+}
+
+body.dark-mode #listCreatorScreen input,
+body.dark-mode #listCreatorScreen textarea,
+body.dark-mode #listCreatorScreen select,
+body.dark-mode #questionCreatorScreen input,
+body.dark-mode #questionCreatorScreen textarea,
+body.dark-mode #questionCreatorScreen select {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff !important;
+}
+
+
+body.dark-mode #listCreatorScreen input::placeholder,
+body.dark-mode #listCreatorScreen textarea::placeholder,
+body.dark-mode #questionCreatorScreen input::placeholder,
+body.dark-mode #questionCreatorScreen textarea::placeholder {
+  color: #ded6df !important;
+  -webkit-text-fill-color: #ded6df !important;
+  opacity: 1 !important;
+}
+body.dark-mode #listCreatorScreen option,
+body.dark-mode #questionCreatorScreen option {
+  background: #171216 !important;
+  color: #ffffff !important;
+}
+@media (max-width: 560px) {
+  .shared-item-checkers { max-width: 42%; }
+  .shared-item-checker { max-width: 100%; font-size: 11px; }
+}
+
+/* Fix checker-name badges being squeezed into narrow, circular pills. */
+.shared-item-checkers {
+  min-width: max-content;
+  max-width: 48%;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.shared-item-checker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 1 auto;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 560px) {
+  .shared-item-checkers {
+    min-width: 0;
+    max-width: 42%;
+  }
+  .shared-item-checker {
+    max-width: 100%;
+    white-space: nowrap;
+  }
 }

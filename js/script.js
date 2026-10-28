@@ -16,6 +16,7 @@ import {
   getDoc,
   getDocs,
   updateDoc,
+  runTransaction,
   deleteDoc,
   query,
   where,
@@ -6330,6 +6331,79 @@ function canDelete(permission) {
     "full";
 }
 
+/* Each person checks off their own copy of a shared item. */
+function getItemCheckers(item) {
+  const uids = Array.isArray(item?.checkedByUids)
+    ? [...item.checkedByUids]
+    : (item?.checkedByUid ? [item.checkedByUid] : []);
+  const names = Array.isArray(item?.checkedByUsernames)
+    ? [...item.checkedByUsernames]
+    : (item?.checkedByUid && item?.checkedByUsername
+        ? [{ uid: item.checkedByUid, username: item.checkedByUsername }]
+        : []);
+
+  // Support records written by the older single-checker version.
+  const normalizedNames = names.map(entry =>
+    typeof entry === "string"
+      ? { uid: null, username: entry }
+      : entry
+  );
+
+  return { uids, names: normalizedNames };
+}
+
+function isItemCheckedByCurrentUser(item) {
+  if (!currentUser?.uid) return false;
+  return getItemCheckers(item).uids.includes(currentUser.uid);
+}
+
+function renderItemCheckers(item) {
+  const { uids, names } = getItemCheckers(item);
+  const visibleNames = names.filter(entry => entry?.username);
+
+  // Legacy records can have the UID and name in separate fields.
+  if (!visibleNames.length && item?.checkedByUid && item?.checkedByUsername) {
+    visibleNames.push({ uid: item.checkedByUid, username: item.checkedByUsername });
+  }
+
+  return visibleNames.map(entry => `
+    <span class="shared-item-checker" title="Checked by ${escapeHtml(entry.username)}">
+      ${escapeHtml(entry.username)}
+    </span>
+  `).join("");
+}
+
+async function setCurrentUserItemCheck(itemId, checked) {
+  const uid = currentUser?.uid;
+  if (!uid) throw new Error("Sign in before checking a list item.");
+
+  const itemRef = doc(db, "lists", currentListId, "items", itemId);
+  await runTransaction(db, async transaction => {
+    const snapshot = await transaction.get(itemRef);
+    if (!snapshot.exists()) throw new Error("That list item no longer exists.");
+
+    const data = snapshot.data();
+    const checkers = getItemCheckers(data);
+    const nextUids = checkers.uids.filter(existingUid => existingUid !== uid);
+    const nextNames = checkers.names.filter(entry => entry?.uid !== uid);
+
+    if (checked) {
+      nextUids.push(uid);
+      nextNames.push({ uid, username: username || "Friend" });
+    }
+
+    transaction.update(itemRef, {
+      checkedByUids: nextUids,
+      checkedByUsernames: nextNames,
+      // Legacy fields remain for compatibility with older app versions.
+      checked: nextUids.length > 0,
+      checkedByUid: nextUids.length ? nextUids[0] : null,
+      checkedByUsername: nextNames.length ? nextNames[0].username : null,
+      updatedAt: serverTimestamp()
+    });
+  });
+}
+
 /* =========================================================
    RENDER PLAYER LIST
 ========================================================= */
@@ -6361,7 +6435,7 @@ function renderPlayerList() {
               item => `
                 <div
                   class="shared-item ${
-                    item.checked
+                    isItemCheckedByCurrentUser(item)
                       ? "checked"
                       : ""
                   }"
@@ -6373,7 +6447,7 @@ function renderPlayerList() {
                       type="checkbox"
                       data-player-check="${item.id}"
                       ${
-                        item.checked
+                        isItemCheckedByCurrentUser(item)
                           ? "checked"
                           : ""
                       }
@@ -6386,13 +6460,17 @@ function renderPlayerList() {
                       }
                     >
 
-                    <span>
+                    <span class="shared-item-text">
                       ${escapeHtml(
                         item.text
                       )}
                     </span>
 
                   </label>
+
+                  <div class="shared-item-checkers">
+                    ${renderItemCheckers(item)}
+                  </div>
 
                   ${
                     canEdit(
@@ -6481,21 +6559,7 @@ async function toggleListItem(
 
   try {
 
-    await updateDoc(
-      doc(
-        db,
-        "lists",
-        currentListId,
-        "items",
-        itemId
-      ),
-      {
-        checked,
-
-        updatedAt:
-          serverTimestamp()
-      }
-    );
+    await setCurrentUserItemCheck(itemId, checked);
 
     await refreshPlayerListItems();
     const changedItem = currentListItems.find(item => item.id === itemId);
@@ -6825,7 +6889,7 @@ function renderManageItems() {
               item => `
                 <div
                   class="manage-item ${
-                    item.checked
+                    isItemCheckedByCurrentUser(item)
                       ? "checked"
                       : ""
                   }"
@@ -6837,7 +6901,7 @@ function renderManageItems() {
                       type="checkbox"
                       data-manage-check="${item.id}"
                       ${
-                        item.checked
+                        isItemCheckedByCurrentUser(item)
                           ? "checked"
                           : ""
                       }
@@ -6851,6 +6915,10 @@ function renderManageItems() {
                     >
 
                   </label>
+
+                  <div class="shared-item-checkers">
+                    ${renderItemCheckers(item)}
+                  </div>
 
                   <button
                     class="icon-button danger"
@@ -6883,23 +6951,15 @@ function renderManageItems() {
         "change",
         async () => {
 
-          await updateDoc(
-            doc(
-              db,
-              "lists",
-              currentListId,
-              "items",
-              input.dataset
-                .manageCheck
-            ),
-            {
-              checked:
-                input.checked,
-
-              updatedAt:
-                serverTimestamp()
-            }
-          );
+          try {
+            await setCurrentUserItemCheck(
+              input.dataset.manageCheck,
+              input.checked
+            );
+          } catch (error) {
+            console.error("Couldn't update checklist check:", error);
+            toast("Couldn't update that item. Please try again.");
+          }
 
           await refreshPlayerListItems();
           const changedItem = currentListItems.find(item => item.id === input.dataset.manageCheck);
