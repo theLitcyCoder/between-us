@@ -23,6 +23,7 @@ import {
   orderBy,
   limit,
   serverTimestamp,
+  Timestamp,
   onSnapshot,
   arrayUnion
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
@@ -3846,6 +3847,11 @@ function formatDateTime(timestamp) {
   });
 }
 
+function formatTimestampLabel(timestamp, prefix = "") {
+  if (!timestamp) return "";
+  return `${prefix}${formatDateTime(timestamp)}`;
+}
+
 function friendQuestionChatMarkup(questionId) {
   return `
     <details class="bu-chat-accordion">
@@ -5190,7 +5196,18 @@ if (dashboardSharedLists.length) {
             · ${list.itemCount ?? 0} items
             · ${escapeHtml(PERMISSIONS[list.permission] || PERMISSIONS.view)}
           </p>
+          <small class="dashboard-list-timestamps">
+            Created ${escapeHtml(formatDateTime(list.createdAt))}
+            ${list.updatedAt ? ` · Updated ${escapeHtml(formatDateTime(list.updatedAt))}` : ""}
+          </small>
         </div>
+
+        ${list.sharedWithUid && list.sharedWithUsername ? `
+  <small class="dashboard-list-shared-with">
+    <span>♡</span>
+    Shared with ${escapeHtml(list.sharedWithUsername)}
+  </small>
+` : ""}
 
         <div class="dashboard-actions">
           <button
@@ -5246,6 +5263,16 @@ function renderDashboardList(list) {
             PERMISSIONS.view
           }
         </p>
+        <small class="dashboard-list-timestamps">
+          Created ${escapeHtml(formatDateTime(list.createdAt))}
+          ${list.updatedAt ? ` · Updated ${escapeHtml(formatDateTime(list.updatedAt))}` : ""}
+        </small>
+               ${list.sharedWithUid && list.sharedWithUsername ? `
+  <small class="dashboard-list-shared-with">
+    <span>♡</span>
+    Shared with ${escapeHtml(list.sharedWithUsername)}
+  </small>
+` : ""}
 
       </div>
 
@@ -6367,8 +6394,9 @@ function renderItemCheckers(item) {
   }
 
   return visibleNames.map(entry => `
-    <span class="shared-item-checker" title="Checked by ${escapeHtml(entry.username)}">
-      ${escapeHtml(entry.username)}
+    <span class="shared-item-checker" title="Checked by ${escapeHtml(entry.username)}${entry.checkedAt ? ` on ${escapeHtml(formatDateTime(entry.checkedAt))}` : ""}">
+      <strong>${escapeHtml(entry.username)}</strong>
+      ${entry.checkedAt ? `<small>${escapeHtml(formatDateTime(entry.checkedAt))}</small>` : ""}
     </span>
   `).join("");
 }
@@ -6389,7 +6417,7 @@ async function setCurrentUserItemCheck(itemId, checked) {
 
     if (checked) {
       nextUids.push(uid);
-      nextNames.push({ uid, username: username || "Friend" });
+      nextNames.push({ uid, username: username || "Friend", checkedAt: Timestamp.now() });
     }
 
     transaction.update(itemRef, {
@@ -6460,10 +6488,9 @@ function renderPlayerList() {
                       }
                     >
 
-                    <span class="shared-item-text">
-                      ${escapeHtml(
-                        item.text
-                      )}
+                    <span class="shared-item-content">
+                      <span class="shared-item-text">${escapeHtml(item.text)}</span>
+                      ${item.createdAt ? `<small class="shared-item-created">Added ${escapeHtml(formatDateTime(item.createdAt))}</small>` : ""}
                     </span>
 
                   </label>
@@ -6916,6 +6943,7 @@ function renderManageItems() {
 
                   </label>
 
+                  ${item.createdAt ? `<small class="shared-item-created">Added ${escapeHtml(formatDateTime(item.createdAt))}</small>` : ""}
                   <div class="shared-item-checkers">
                     ${renderItemCheckers(item)}
                   </div>

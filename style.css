@@ -2808,3 +2808,27 @@ body.dark-mode #questionCreatorScreen option {
     white-space: nowrap;
   }
 }
+
+/* Shared with username on dashboard list cards */
+.dashboard-list-shared-with {
+  display: block;
+  margin-top: 5px;
+  color: #9b526d;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.dashboard-list-shared-with span {
+  color: #c56b8d;
+  margin-right: 3px;
+}
+
+/* Dark mode */
+body.dark-mode .dashboard-list-shared-with {
+  color: #f0b7cc !important;
+}
+
+body.dark-mode .dashboard-list-shared-with span {
+  color: #e58aaa !important;
+}
